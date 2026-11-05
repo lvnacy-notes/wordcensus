@@ -1,0 +1,252 @@
+/**
+ * Exported types and interfaces shared across the plugin's modules.
+ */
+
+export type RegionResult =
+	| { mode: 'note'; text: string }
+	| { mode: 'sentinel'; text: string; pairs: number }
+	| { mode: 'heading'; text: string; heading: string; found: boolean };
+
+
+/** An analog clock face that can be redrawn. */
+export interface ClockFace {
+	update(model: ClockModel): void;
+}
+
+/** What the clock face draws. */
+export interface ClockModel {
+	/** Milliseconds shown by the hands: elapsed time, or time remaining for a countdown. */
+	ms: number;
+	/** Fraction of a countdown still remaining, from 0 to 1, or null for modes without a wedge. */
+	wedge: number | null;
+}
+
+export interface CountdownRun extends Run {
+	durationMs: number;
+}
+
+export interface CountOptions {
+	/** Count the contents of fenced code blocks. */
+	includeCodeBlocks: boolean;
+	/** Count footnote definitions (and inline footnotes). */
+	includeFootnotes: boolean;
+	/**
+	 * Count the text of embeds (`![[...]]` and `![alt](url)`). This only
+	 * counts the embed's own text (target or alias, or alt text); it does
+	 * not resolve and count the embedded note's contents.
+	 */
+	includeEmbeds: boolean;
+}
+
+/** One label and value shown below the clock. */
+export interface DataRow {
+	label: string;
+	value: string;
+}
+
+export interface DriverEnvironment {
+	notify(message: string): void;
+	now(this: void): number;
+	/** Calls `handler` each time the app returns to the foreground. */
+	onForeground(handler: () => void): void;
+	/** Calls `handler` every `intervalMs` until the returned function is called. */
+	schedule(handler: () => void, intervalMs: number): () => void;
+}
+
+/** The result of counting one note's region. */
+export interface NoteCount {
+	/** The heading counted under, or null outside heading mode. */
+	heading: string | null;
+	/** False when a configured heading matched nothing. Always true outside heading mode. */
+	headingFound: boolean;
+	/** Which rule produced the region. */
+	mode: 'heading' | 'note' | 'sentinel';
+	/** Number of start and end marker pairs, or zero outside sentinel mode. */
+	pairs: number;
+	words: number;
+}
+
+/** A note, with the count of its region. */
+export interface NoteInfo {
+	count: NoteCount;
+	path: string;
+	title: string;
+}
+
+/** Hand rotations in degrees clockwise from twelve o'clock. */
+export interface HandAngles {
+	hour: number;
+	minute: number;
+	second: number;
+}
+
+export interface HeadingRegion {
+	/** The heading exactly as written in the note, without its `#` markers. */
+	heading: string;
+	text: string;
+}
+
+/** A rendered sidebar panel. */
+export interface Panel {
+	/** Removes the panel from the page. */
+	destroy(): void;
+	update(model: PanelModel): void;
+}
+
+/** The callbacks a panel invokes when the user acts. */
+export interface PanelActions {
+	onDuration(minutes: number): void;
+	onMode(mode: TimerMode): void;
+	onReset(): void;
+	onToggle(): void;
+}
+
+/** Opens and closes the sidebar panel's content in a host element. */
+export interface PanelController {
+	/** Releases every subscription and removes the panel. Safe to call when not open. */
+	close(): void;
+	/** Renders the panel into `host`, replacing any panel already open. */
+	open(host: HTMLElement): void;
+}
+
+/** What a panel controller needs from the rest of the plugin. */
+export interface PanelControllerDeps {
+	driver: TimerDriver;
+	now(): number;
+	/** Counts a note's region: the note at `path`, or the active note when omitted. Null when there is none. */
+	readNote(path?: string): Promise<NoteInfo | null>;
+	store: Store;
+	/** Calls `handler` whenever the active note or its text changes. Returns the stop function. */
+	watchNotes(handler: () => void): () => void;
+}
+
+/** The inputs that determine a panel model. */
+export interface PanelInput {
+	active: NoteInfo | null;
+	/** The note the session is bound to, with its current count, or null when unbound. */
+	bound: NoteInfo | null;
+	now: number;
+	timer: TimerState;
+}
+
+/** Everything the panel shows, ready to render. */
+export interface PanelModel {
+	clock: ClockModel;
+	/** The countdown length in whole minutes, or null when the countdown is not the selected mode. */
+	durationMinutes: number | null;
+	durationEditable: boolean;
+	mode: TimerMode;
+	/** True when the selected run is running. */
+	running: boolean;
+	/** True when the selected mode is a countdown that has run out and awaits reset. */
+	startDisabled: boolean;
+	rows: DataRow[];
+	summary: PanelSummary;
+}
+
+export interface PanelSummary {
+	detail: string;
+	headline: string;
+}
+
+/** Where saved data lives. In the plugin this is `loadData` and `saveData`. */
+export interface Persistence {
+	load(): Promise<unknown>;
+	save(data: unknown): Promise<void>;
+}
+
+export interface RegionConfig {
+	/** The configured heading to count under, if any. Blank means none. */
+	heading?: string | null;
+}
+
+/** The time-keeping core shared by every mode. */
+export interface Run {
+	/** Milliseconds accumulated before the current stretch began. */
+	accumulatedMs: number;
+	/** When the current stretch began, or null when paused or idle. */
+	startedAt: number | null;
+}
+
+/** The running plugin, as `main.ts` sees it. */
+export interface Runtime {
+	/** Stops the timer and saves state. Everything registered with Obsidian is released by Obsidian itself. */
+	stop(): Promise<void>;
+}
+
+/** What gets written to `data.json`. */
+export interface SavedData extends WordCensusSettings {
+	/** Present only when `keepTimerState` is on. */
+	timer?: TimerState;
+}
+
+/** The note a session measures its words against. */
+export interface SessionBinding {
+	path: string;
+	/** The note's region word count when the session started. */
+	baselineWords: number;
+}
+
+export interface SessionRun extends Run {
+	binding: SessionBinding | null;
+}
+
+export interface SessionStats {
+	elapsedMs: number;
+	/** Net words since the session started (negative if text was removed), or null for an unbound session. */
+	wordsWritten: number | null;
+	/** Words per minute of running time, or null for an unbound session. */
+	wordsPerMinute: number | null;
+}
+
+export interface Store {
+	readonly settings: WordCensusSettings;
+	readonly timer: TimerState;
+	/** Replaces the current timer state. */
+	replaceTimer(timer: TimerState): void;
+	/** Reads saved data. Malformed data never throws; it falls back to defaults. */
+	load(): Promise<void>;
+	/** Writes the current settings, and the timer if the user is keeping it. */
+	save(): Promise<void>;
+	/** Applies a change to the settings, normalized, then saves. */
+	updateSettings(change: Partial<WordCensusSettings>): Promise<void>;
+}
+
+export interface TimerDriver {
+	/** Checks the timer now and starts watching for the app returning to the foreground. */
+	begin(): void;
+	/** Stops ticking and drops every subscriber. */
+	end(): void;
+	pause(): void;
+	reset(): void;
+	selectMode(mode: TimerMode): void;
+	setCountdownDuration(durationMs: number): void;
+	start(binding?: SessionBinding): void;
+	/** Calls `listener` after every tick and every state change. Returns the unsubscribe function. */
+	subscribe(this: void, listener: () => void): () => void;
+}
+
+export type TimerMode = 'stopwatch' | 'countdown' | 'session';
+
+export interface TimerState {
+	mode: TimerMode;
+	stopwatch: Run;
+	countdown: CountdownRun;
+	session: SessionRun;
+}
+
+export interface WordCensusSettings extends CountOptions {
+	/** Length of a new countdown, in minutes. */
+	defaultCountdownMinutes: number;
+	/** Count under this heading when a note has no sentinels. Blank means none. */
+	heading: string;
+	/** Keep the timer's state across restarts. */
+	keepTimerState: boolean;
+	/** Show the word count in the status bar. Desktop only. */
+	showStatusBar: boolean;
+}
+
+/** The slice of `Intl.Segmenter` that this module needs. */
+export interface WordSegmenter {
+	segment(input: string): Iterable<{ isWordLike?: boolean }>;
+}

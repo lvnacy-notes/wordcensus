@@ -1,0 +1,130 @@
+/* Word Census: panel, clock face and inline-block styling. Populated as the
+   sidebar view and the wordcount processor are built. */
+
+.wordcensus-clock {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.wordcensus-clock-face {
+	fill: var(--background-secondary);
+	stroke: var(--background-modifier-border);
+	stroke-width: 1;
+}
+
+.wordcensus-clock-hand {
+	stroke: var(--text-normal);
+	stroke-linecap: round;
+}
+
+.wordcensus-clock-hand-hour {
+	stroke-width: 3;
+}
+
+.wordcensus-clock-hand-minute {
+	stroke-width: 2;
+}
+
+.wordcensus-clock-hand-second {
+	stroke: var(--interactive-accent);
+	stroke-width: 1;
+}
+
+.wordcensus-clock-host {
+	width: 100%;
+	max-width: 280px;
+	margin: 0 auto;
+}
+
+.wordcensus-clock-tick {
+	stroke: var(--text-muted);
+	stroke-width: 1;
+}
+
+.wordcensus-clock-wedge {
+	fill: var(--interactive-accent);
+	opacity: 0.25;
+}
+
+.wordcensus-controls {
+	display: flex;
+	gap: var(--size-4-2);
+}
+
+.wordcensus-controls button {
+	flex: 1;
+	min-height: 44px;
+}
+
+.wordcensus-duration {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+}
+
+.wordcensus-duration[hidden] {
+	display: none;
+}
+
+.wordcensus-duration-input {
+	width: 6em;
+	min-height: 44px;
+}
+
+.wordcensus-mode {
+	flex: 1;
+	min-height: 44px;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+.wordcensus-mode.is-active {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.wordcensus-modes {
+	display: flex;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	overflow: hidden;
+}
+
+.wordcensus-panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+	padding: var(--size-4-2);
+}
+
+.wordcensus-row {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+}
+
+.wordcensus-row-label {
+	color: var(--text-muted);
+}
+
+.wordcensus-row-value {
+	font-variant-numeric: tabular-nums;
+}
+
+.wordcensus-rows {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+}
+
+.wordcensus-summary-headline {
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+}
+
+.wordcensus-summary-detail {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}

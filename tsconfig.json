@@ -1,0 +1,26 @@
+{
+	"compilerOptions": {
+		"paths": {
+			"*": ["./*"]
+		},
+		"inlineSourceMap": true,
+		"inlineSources": true,
+		"module": "ESNext",
+		"target": "ES2020",
+		"allowJs": true,
+		"noImplicitAny": true,
+		"moduleResolution": "bundler",
+		"importHelpers": true,
+		"isolatedModules": true,
+		"strictNullChecks": true,
+		"strictPropertyInitialization": true,
+		"strictFunctionTypes": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"lib": ["DOM", "ES2020", "ES2022.Intl"],
+		"allowSyntheticDefaultImports": true,
+		"types": ["node"]
+	},
+	"include": ["**/*.ts"],
+	"exclude": ["node_modules", "dist"]
+}

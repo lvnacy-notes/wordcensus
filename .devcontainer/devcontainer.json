@@ -1,0 +1,24 @@
+{
+  "name": "Debian Node Dev Container",
+  "image": "lvnacy/node-devcontainer",
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "mounts": [
+    "type=volume,source=tabcandy-node-modules,target=/workspace/node_modules",
+    "type=volume,source=tabcandy-pnpm-store,target=/home/vscode/.local/share/pnpm/store"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-typescript-next"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "postCreateCommand": "pnpm install",
+  "postStartCommand": "bash /workspace/.devcontainer/verify-tools.sh"
+}
