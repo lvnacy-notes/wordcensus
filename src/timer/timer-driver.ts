@@ -50,8 +50,16 @@ export function createTimerDriver(store: Store, environment: DriverEnvironment):
 	};
 
 	const syncTicking = (): void => {
-		const { countdown, session, stopwatch } = store.timer;
-		const needed = [stopwatch, countdown, session].some(isRunning);
+		const {
+			countdown,
+			session,
+			stopwatch
+		} = store.timer;
+		const needed = [
+			stopwatch,
+			countdown,
+			session
+		].some(isRunning);
 		if (needed && cancelTicking === null) {
 			cancelTicking = environment.schedule(check, TICK_MS);
 		} else if (!needed && cancelTicking !== null) {

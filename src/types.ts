@@ -7,6 +7,7 @@ export type RegionResult =
 	| { mode: 'sentinel'; text: string; pairs: number }
 	| { mode: 'heading'; text: string; heading: string; found: boolean };
 
+export type TimerMode = 'stopwatch' | 'countdown' | 'session';
 
 /** An analog clock face that can be redrawn. */
 export interface ClockFace {
@@ -53,6 +54,19 @@ export interface DriverEnvironment {
 	schedule(handler: () => void, intervalMs: number): () => void;
 }
 
+/** Hand rotations in degrees clockwise from twelve o'clock. */
+export interface HandAngles {
+	hour: number;
+	minute: number;
+	second: number;
+}
+
+export interface HeadingRegion {
+	/** The heading exactly as written in the note, without its `#` markers. */
+	heading: string;
+	text: string;
+}
+
 /** The result of counting one note's region. */
 export interface NoteCount {
 	/** The heading counted under, or null outside heading mode. */
@@ -71,19 +85,6 @@ export interface NoteInfo {
 	count: NoteCount;
 	path: string;
 	title: string;
-}
-
-/** Hand rotations in degrees clockwise from twelve o'clock. */
-export interface HandAngles {
-	hour: number;
-	minute: number;
-	second: number;
-}
-
-export interface HeadingRegion {
-	/** The heading exactly as written in the note, without its `#` markers. */
-	heading: string;
-	text: string;
 }
 
 /** A rendered sidebar panel. */
@@ -225,8 +226,6 @@ export interface TimerDriver {
 	/** Calls `listener` after every tick and every state change. Returns the unsubscribe function. */
 	subscribe(this: void, listener: () => void): () => void;
 }
-
-export type TimerMode = 'stopwatch' | 'countdown' | 'session';
 
 export interface TimerState {
 	mode: TimerMode;
