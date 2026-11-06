@@ -38,6 +38,10 @@ Word Census is an Obsidian plugin that counts words only inside a defined region
 | 17 | Settings | Global heading, three counting toggles, keep timer between sessions (off by default), status bar item on desktop (on by default), and a default countdown length (25 minutes). Every edit goes through the store, which runs `normalizeSettings` |
 | 18 | `main.ts` is lifecycle only | `main.ts` holds `onload` and `onunload` and nothing else. Commands, sidebar, processor, status bar and the settings tab each live in their own module and are registered from `runtime.ts`; state and persistence live in the pure `store.ts` |
 | 19 | Declarative settings API | The settings tab implements `getSettingDefinitions` and has no `display()`. This sets `minAppVersion` to 1.13.0. Values route through the store via `getControlValue` and `setControlValue`, keeping normalization in one place |
+| 20 | Where types live | Exported types and interfaces live in `src/types.ts`, and test-only ones in `src/test/test-types.ts`, so each can be found in one place. A module keeps only the types it does not export |
+| 21 | Panel structure | The panel is split so its logic is testable without Obsidian: `panel-model.ts` (what to show), `panel.ts` (DOM), `panel-controller.ts` (subscriptions and actions). `View.ts` and `note-source.ts` are the thin Obsidian-facing layer |
+| 22 | Layout and naming | Source is grouped by purpose under `src/` (`counting/`, `obsidian/`, `panel/`, `settings/`, `timer/`, `commands/`). A file that exports a class is named for the class in PascalCase (`SettingsTab.ts`, `View.ts`); every other file is kebab-case |
+| 23 | Saving a running timer | Besides every user action, the timer is saved when the app goes to the background, so time a running timer has accumulated since the last action survives the app being closed |
 
 ## 3. Region Modes
 
@@ -114,11 +118,10 @@ An inline `wordcount` block with a `heading:` override skips this order and alwa
 
 ## 4. Choosing the Heading
 
-Three mechanisms, which can coexist:
+Two mechanisms, which can coexist:
 
 - **Global setting:** "count under the heading named X" (useful for a convention such as `## Draft`).
 - **Per-note frontmatter override:** e.g. `word-count-heading: "Chapter 3"`.
-- **Command:** "Set word count heading" opens a fuzzy picker of the current note's headings (via `metadataCache`) and writes the choice to frontmatter. This works on mobile, so it is the primary route there.
 
 ## 5. What Counts as a Word
 
@@ -184,7 +187,7 @@ The panel updates live as the active note changes: debounced on `editor-change`,
 - **Countdown at zero:** it stops exactly on its duration and flags itself finished. A late check, such as the app returning from the background, still lands on the duration and never overshoots. A finished countdown ignores Start until it is reset. The store checks on every tick and on return to the foreground, and raises the notice when a countdown newly finishes.
 - **Countdown duration** is editable only while the countdown is not running. Changing it restarts the countdown from the new value. It is clamped to between 1 second and 24 hours, and the default is 25 minutes.
 - **Unbound session:** if no note is open when a session starts, it still times, but shows no word statistics. A session binds to its note on first start and keeps that note on resume.
-- **Saving and restoring:** what gets saved is a frozen copy in which everything running has been paused, with its time folded in. On restore every run comes back paused, any stored start time is discarded, and malformed or unknown saved data is replaced with safe defaults. Time the app spent closed is never counted.
+- **Saving and restoring:** what gets saved is a frozen copy in which everything running has been paused, with its time folded in. On restore every run comes back paused, any stored start time is discarded, and malformed or unknown saved data is replaced with safe defaults. Time the app spent closed is never counted. The timer is also saved when the app goes to the background, so a running timer's time since the last action is not lost if the app is then closed.
 - **Clock moves backwards:** a system clock change never makes a run shorter.
 - **Display:** `m:ss`, or `h:mm:ss` from one hour. Countdowns round up so `0:00` only appears once finished.
 
@@ -208,7 +211,10 @@ A fenced code block with the language `wordcount` renders the count in place:
   ````
 
   The override uses the same matching rules as 3.2 (case-insensitive, first match wins). If the heading is not found, the block shows a short "heading not found" message rather than a zero.
-- It subscribes to updates through a `MarkdownRenderChild`, so it refreshes while the note is open. Because it reads saved file contents, it may lag the editor by a moment unless it prefers the live editor buffer when the note is the active one.
+- It subscribes to updates through a `MarkdownRenderChild`, so it refreshes while the note is open: when the note is edited (debounced), when its properties change, and when the active note changes. When the note is open in an editor the block reads the live editor text, otherwise the cached file.
+- A block without `heading:` counts the note's own region exactly as the sidebar panel does, including the note's `word-count-heading` property. A block with `heading:` counts under that heading in every case, even when the note has sentinels.
+- The `heading:` key is matched case-insensitively, its value is trimmed and may be wrapped in quotes, and the first `heading:` line with a value wins. Every other line in the body is ignored.
+- The block shows the count and a short detail line (for example `Under “Chapter 3”`). If the note cannot be read it shows "Word count unavailable".
 
 ### 6.3 Status bar (desktop only)
 
@@ -216,9 +222,7 @@ A status bar item such as `142 words (region)`, with a tooltip showing the mode 
 
 ### 6.4 Commands
 
-- "Show word count for region" (notice; works on mobile)
 - "Open word count panel"
-- "Set word count heading"
 
 ### 6.5 Settings
 
@@ -234,7 +238,7 @@ A status bar item such as `142 words (region)`, with a tooltip showing the mode 
 
 **Saved data.** Settings are top-level fields in `data.json`. A `timer` field is present only when "keep timer between sessions" is on. Whatever is read back is treated as untrusted: a field of the wrong type falls back to its default, the countdown length is rounded and clamped, unknown fields are dropped, and the plugin always loads. A new timer starts with the countdown length from settings.
 
-**The tab** (`settings-tab.ts`) uses Obsidian's declarative settings API (`getSettingDefinitions`, Obsidian 1.13.0 and later), so the settings are described, not built, and appear in Obsidian's settings search. The counting settings sit unheaded at the top; Timer and Display are groups. The tab overrides `getControlValue` and `setControlValue` so values are read from and written to the store instead of `plugin.settings`. Every edit goes through `store.updateSettings`, which runs `normalizeSettings` before anything is stored, so an out-of-range or malformed value can never reach saved data. The heading for a single note (a property in its frontmatter) is not a setting; it is described in section 4.
+**The tab** (`SettingsTab.ts`) uses Obsidian's declarative settings API (`getSettingDefinitions`, Obsidian 1.13.0 and later), so the settings are described, not built, and appear in Obsidian's settings search. The counting settings sit unheaded at the top; Timer and Display are groups. The tab overrides `getControlValue` and `setControlValue` so values are read from and written to the store instead of `plugin.settings`. Every edit goes through `store.updateSettings`, which runs `normalizeSettings` before anything is stored, so an out-of-range or malformed value can never reach saved data. The heading for a single note (a property in its frontmatter) is not a setting; it is described in section 4.
 
 ## 7. Code Structure
 
@@ -246,37 +250,75 @@ styles.css               panel, clock and inline-block styling
 manifest.json
 versions.json
 src/
-  runtime.ts             the single wiring point: builds the store, registers every feature with Obsidian
-  store.ts               pure: current settings and timer, load, save, updateSettings (persistence and clock injected)
-  store.test.ts
-  settings.ts            pure: settings interface, defaults, normalizeSettings, timer load and save
-  settings.test.ts
-  settings-tab.ts        the settings tab (Obsidian UI)
-  region.ts              pure: text + config -> region text (sentinel/heading logic)
-  region.test.ts
-  count.ts               pure: region text + options -> word count
-  count.test.ts
-  timer.ts               pure: timer state machine with injectable clock
-  timer.test.ts
-  clock-face.ts          SVG analog clock rendering
-  view.ts                sidebar ItemView
-  processor.ts           wordcount code-block processor
-  heading-modal.ts       fuzzy suggest modal for heading selection
+  runtime.ts             the single wiring point: builds the store and driver, registers every feature with Obsidian
+  types.ts               every exported type and interface
+  block/
+    block-controller.ts  keeps one `wordcount` block's count current; owns its note subscription
+    block-controller.test.ts
+    block-model.ts       pure: reads the block's `heading:` line, counts the note for a block
+    block-model.test.ts
+  commands/
+    open-panel.ts        the "Open word count panel" command
+  counting/
+    count.ts             pure: region text + options -> word count
+    count.test.ts
+    note-count.ts        pure: note text + settings (+ per-note heading) -> NoteCount
+    note-count.test.ts
+    region.ts            pure: text + config -> region text (sentinel/heading logic)
+    region.test.ts
+  obsidian/              the Obsidian-facing layer; no logic worth a unit test lives here
+    note-source.ts       reads notes from the vault and watches for changes
+    processor.ts         builds the `wordcount` code-block callback
+    SettingsTab.ts       the settings tab (declarative API), class file
+    status-bar.ts        adds the status bar item and builds its controller
+    View.ts              the sidebar ItemView, a shell around the panel controller, class file
+    WordCountBlock.ts    the MarkdownRenderChild for one block, a shell around the block controller, class file
+  panel/
+    clock-face.ts        hand angles and wedge path (pure), SVG clock face
+    clock-face.test.ts
+    panel.ts             renders a PanelModel as DOM and reports the user's actions
+    panel.test.ts
+    panel-controller.ts  keeps the open panel current; owns its subscriptions
+    panel-controller.test.ts
+    panel-model.ts       pure: timer + notes -> everything the panel shows
+    panel-model.test.ts
+  settings/
+    settings.ts          pure: defaults, normalizeSettings, timer load and save
+    settings.test.ts
+    store.ts             pure: current settings and timer, load, save, updateSettings, subscribe (persistence and clock injected)
+    store.test.ts
+  status-bar/
+    status-bar-controller.ts  keeps the item current; owns its subscriptions
+    status-bar-controller.test.ts
+    status-bar-model.ts       pure: count -> item text and tooltip
+    status-bar-model.test.ts
+  timer/
+    timer.ts             pure: timer state machine with injectable clock
+    timer.test.ts
+    timer-driver.ts      ticks the timer in real time (injected scheduler, clock, foreground and background hooks, notices)
+    timer-driver.test.ts
   test/
-    fakes.ts             buildSettings() and the malformed-settings fixture
+    fakes.ts             buildSettings(), the malformed-settings fixture, fakePersistence(), fakeEnvironment()
     region-count.test.ts region extraction feeding the counter (integration tests sit directly in test/)
+    test-types.ts        every exported type and interface used only by tests
 docs/
-  SPEC.md
+  Code Style Guide.md    comments, class files, ordering, types.ts, list-breaking, brace spacing
   LVNACY Testing Philosophy.md   how tests get written, in every project
+  SPEC.md
   TESTING.md             this project's application of the philosophy
 .coverage/
   baseline.json
   check-coverage-ratchet.js
 ```
 
-`region.ts`, `count.ts`, and `timer.ts` are plain functions with no `obsidian` imports, so the tricky parts (heading boundaries, unterminated sentinels, comment stripping, timer transitions) are unit-testable.
+`count.ts`, `region.ts`, `timer.ts`, `store.ts`, `panel-model.ts`, `note-count.ts` and `block-model.ts` are plain functions with no `obsidian` imports, so the tricky parts (heading boundaries, unterminated sentinels, comment stripping, timer transitions) are unit-testable.
 
-**Module layout.** Every module reads top to bottom in three sections, each under a banner comment: *Interfaces and Types*, then *Declared Variables and Constants*, then *Functions*. Declarations are alphabetical within a section, except where one has to follow another it depends on (a type that extends another, a constant built from another constant). Test files are not laid out this way.
+**Module layout.** The rules are in [Code Style Guide](<Code Style Guide.md>). In short:
+
+- Exported types and interfaces live in `types.ts`. A module keeps only the types it does not export.
+- A module whose declarations are numerous reads top to bottom in banner-headed sections: *Interfaces and Types*, *Declared Variables and Constants*, *Functions*. A small module omits the banners and simply alphabetizes its functions. Declarations are alphabetical, except where one has to follow another it depends on.
+- A class file puts the class first, then supporting functions, with methods alphabetized. A command file puts `buildInvokeCommand` first.
+- Test files are not laid out this way.
 
 ## 8. Tooling
 
@@ -296,19 +338,16 @@ The Obsidian sample plugin's tooling is not used. The scaffold is adapted from T
 
 ## 9. Open Questions
 
-None blocking. Small inputs to settle while scaffolding:
+None blocking.
 
-- The one-line manifest `description`.
 - `minAppVersion` is `1.13.0`, required by the declarative settings API (decision 19).
-- GitHub repository name.
-- Whether the community plugin list has a collision on the name or `id`. Searches found none, but the authoritative check is `community-plugins.json` in `obsidianmd/obsidian-releases`, which should be confirmed before submission.
 
 ## 10. Scaffold Order
 
 1. Project files: `package.json`, `tsconfig.json`, `esbuild.config.js`, `eslint.config.js`, `vitest.config.js`, `manifest.json`, `versions.json`, `.gitignore`, Ratchet script and baseline.
 2. Pure modules with tests, in this order: `count.ts`, `region.ts`, `timer.ts`.
-3. Store, `runtime.ts`, settings tab and the lifecycle-only `main.ts` shell. Commands and the status bar follow as their own modules, registered from `runtime.ts`.
+3. Store, timer driver, `runtime.ts`, settings tab and the lifecycle-only `main.ts` shell. Commands and the status bar follow as their own modules, registered from `runtime.ts`.
 4. Sidebar view and clock face.
 5. Inline processor.
-6. Heading modal.
+6. Status bar item.
 7. Mobile pass using `pnpm dev:mobile`.

@@ -1,8 +1,8 @@
 /**
  * Draws the sidebar panel: region summary, mode selector, clock, mode data
  * and controls. It renders a `PanelModel` and reports what the user does
- * through `PanelActions`; it holds no state of its own. Uses only standard
- * DOM APIs.
+ * through `PanelActions`; it holds no state of its own. Elements are built
+ * with Obsidian's global `createEl`; everything else is standard DOM.
  */
 
 import { createClockFace } from './clock-face';

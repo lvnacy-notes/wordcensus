@@ -16,7 +16,7 @@ import {
 import type {
 	ClockModel,
 	DataRow,
-	NoteInfo,
+	NoteCount,
 	PanelInput,
 	PanelModel,
 	PanelSummary
@@ -63,7 +63,7 @@ export function buildPanelModel(input: PanelInput): PanelModel {
 	const base = {
 		mode: timer.mode,
 		running: isRunning(run),
-		summary: buildSummary(input.active)
+		summary: buildSummary(input.active?.count ?? null)
 	};
 
 	switch (timer.mode) {
@@ -86,7 +86,12 @@ export function buildPanelModel(input: PanelInput): PanelModel {
 }
 
 function buildSessionModel(base: BaseModel, input: PanelInput): PanelModel {
-	const { active, bound, now, timer } = input;
+	const {
+		active,
+		bound,
+		now,
+		timer
+	} = input;
 	const stats = sessionStats(
 		timer,
 		now,
@@ -109,11 +114,11 @@ function buildSessionModel(base: BaseModel, input: PanelInput): PanelModel {
 	};
 }
 
-function buildSummary(active: NoteInfo | null): PanelSummary {
-	if (active === null) {
+/** The headline and detail line for a count, or for no note when `count` is null. */
+export function buildSummary(count: NoteCount | null): PanelSummary {
+	if (count === null) {
 		return { detail: '', headline: 'No note open' };
 	}
-	const { count } = active;
 	switch (count.mode) {
 		case 'sentinel':
 			return {

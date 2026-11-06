@@ -11,7 +11,11 @@ import {
 } from 'obsidian';
 import type { App } from 'obsidian';
 import { countNote } from '../counting/note-count';
-import type { NoteInfo, Store } from '../types';
+import type {
+	NoteInfo,
+	NoteText,
+	Store
+} from '../types';
 
 /******************************************************************************
  * Declared Variables and Constants
@@ -39,16 +43,37 @@ export async function readNote(
 	store: Store,
 	path?: string
 ): Promise<NoteInfo | null> {
+	const note = await readNoteText(app, path);
+	if (note === null) {
+		return null;
+	}
+	return {
+		count: countNote(
+			note.text,
+			store.settings,
+			note.headingOverride
+		),
+		path: note.path,
+		title: note.title
+	};
+}
+
+/**
+ * Reads the text of the note at `path`, or of the active note when `path`
+ * is omitted, with the note's own heading property. Null when there is no
+ * such Markdown note.
+ */
+export async function readNoteText(app: App, path?: string): Promise<NoteText | null> {
 	const file = path === undefined
 		? app.workspace.getActiveFile()
 		: app.vault.getAbstractFileByPath(path);
 	if (!(file instanceof TFile) || file.extension !== 'md') {
 		return null;
 	}
-	const text = await readText(app, file);
 	return {
-		count: countNote(text, store.settings, readHeadingOverride(app, file)),
+		headingOverride: readHeadingOverride(app, file),
 		path: file.path,
+		text: await readText(app, file),
 		title: file.basename
 	};
 }
@@ -69,7 +94,11 @@ async function readText(app: App, file: TFile): Promise<string> {
  * watching.
  */
 export function watchNotes(app: App, handler: () => void): () => void {
-	const debounced = debounce(handler, EDIT_DEBOUNCE_MS, true);
+	const debounced = debounce(
+		handler,
+		EDIT_DEBOUNCE_MS,
+		true
+	);
 	const workspaceRefs = [
 		app.workspace.on('active-leaf-change', handler),
 		app.workspace.on('file-open', handler),

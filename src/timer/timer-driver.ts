@@ -2,8 +2,9 @@
  * Runs the timer in real time. It ticks once a second while any run is
  * running and not at all otherwise, re-checks when the app returns to the
  * foreground, notifies the user when a countdown finishes, and saves after
- * every user action. Scheduling, the clock, foreground detection and
- * notices are passed in, so nothing here imports Obsidian.
+ * every user action and whenever the app goes to the background. Scheduling,
+ * the clock, foreground and background detection and notices are passed in;
+ * it imports nothing from Obsidian.
  */
 
 import {
@@ -91,6 +92,7 @@ export function createTimerDriver(store: Store, environment: DriverEnvironment):
 
 	return {
 		begin(): void {
+			environment.onBackground(saveQuietly);
 			environment.onForeground(check);
 			syncTicking();
 			check();

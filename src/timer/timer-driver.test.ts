@@ -125,6 +125,21 @@ describe('createTimerDriver', () => {
 			expect(saved).toEqual([{ ...store.settings, timer: freezeTimer(store.timer, environment.time) }]);
 		});
 
+		it('saves the elapsed time of a running timer when the app goes to the background', async () => {
+			const {
+				driver,
+				environment,
+				saved
+			} = await buildHarness({ keepTimerState: true });
+			driver.start();
+
+			environment.time += 5000;
+			environment.goToBackground();
+
+			const lastSave = saved[saved.length - 1] as { timer: { stopwatch: { accumulatedMs: number; startedAt: number | null } } };
+			expect(lastSave.timer.stopwatch).toEqual({ accumulatedMs: 5000, startedAt: null });
+		});
+
 		it('tells the user when saving fails', async () => {
 			const {
 				driver,

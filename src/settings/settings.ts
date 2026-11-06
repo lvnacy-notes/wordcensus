@@ -1,12 +1,10 @@
 /**
- * Pure settings logic. No Obsidian imports, so everything here is
- * unit-testable under plain Vitest. The settings tab that edits these
- * values lives in settings-tab.ts.
+ * Pure settings logic. Imports nothing from Obsidian. The settings tab that
+ * edits these values is `SettingsTab.ts`.
  *
  * Saved data is untrusted: it may be missing, hand-edited, from an older
  * version, or the wrong shape entirely. `normalizeSettings` turns any value
- * into a complete, valid settings object and never throws, so a bad
- * `data.json` can never stop the plugin from loading.
+ * into a complete, valid settings object and never throws.
  *
  * The saved file holds the settings as top-level fields and, only when
  * "keep timer state" is on, a `timer` field. `timerFromData` and

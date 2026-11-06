@@ -1,8 +1,7 @@
 /**
- * The plugin's state holder: the current settings and timer, and how they
- * are loaded and saved. No Obsidian imports. Persistence and the clock are
- * passed in, so everything here is unit-testable and nothing reaches for
- * Obsidian directly.
+ * Holds the plugin's current settings and timer, and loads and saves them
+ * through the persistence and clock it is given. Imports nothing from
+ * Obsidian.
  */
 
 import {
@@ -22,6 +21,7 @@ import type {
 export function createStore(persistence: Persistence, now: () => number): Store {
 	let settings: WordCensusSettings = { ...DEFAULT_SETTINGS };
 	let timer: TimerState = createTimer();
+	const listeners = new Set<() => void>();
 
 	const save = (): Promise<void> => persistence.save(buildSaveData(settings, timer, now()));
 
@@ -41,8 +41,17 @@ export function createStore(persistence: Persistence, now: () => number): Store 
 			timer = timerFromData(raw, settings);
 		},
 		save,
+		subscribe(listener: () => void): () => void {
+			listeners.add(listener);
+			return () => {
+				listeners.delete(listener);
+			};
+		},
 		async updateSettings(change: Partial<WordCensusSettings>): Promise<void> {
 			settings = normalizeSettings({ ...settings, ...change });
+			for (const listener of [...listeners]) {
+				listener();
+			}
 			await save();
 		}
 	};

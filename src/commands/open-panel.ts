@@ -1,7 +1,7 @@
 import type { App, Command } from 'obsidian';
 import { activateView } from '../obsidian/View';
 
-/** The command that reveals the sidebar panel, so it is reachable from the mobile command palette. */
+/** The command that reveals the sidebar panel. */
 export function buildInvokeCommand(app: App): Command {
 	return {
 		callback: () => {

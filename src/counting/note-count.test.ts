@@ -3,7 +3,7 @@ import {
 	expect,
 	it
 } from 'vitest';
-import { countNote } from './note-count';
+import { countHeading, countNote } from './note-count';
 import { buildSettings } from '../test/fakes';
 
 const NOTE = [
@@ -76,5 +76,29 @@ describe('countNote', () => {
 		const result = countNote(text, buildSettings({ includeCodeBlocks: true }));
 
 		expect(result.words).toBe(5);
+	});
+});
+
+describe('countHeading', () => {
+	it('counts under the heading even when the note has markers', () => {
+		const text = `<!-- word count start -->a b<!-- word count end -->\n${ NOTE }`;
+
+		const result = countHeading(text, buildSettings(), 'draft');
+
+		expect(result).toEqual({
+			heading: 'Draft',
+			headingFound: true,
+			mode: 'heading',
+			pairs: 0,
+			words: 3
+		});
+	});
+
+	it('reports a missing heading by the name it was given', () => {
+		const result = countHeading(NOTE, buildSettings(), ' Missing ');
+
+		expect(result.heading).toBe('Missing');
+		expect(result.headingFound).toBe(false);
+		expect(result.words).toBe(0);
 	});
 });

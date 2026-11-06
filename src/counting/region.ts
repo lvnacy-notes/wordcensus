@@ -1,6 +1,5 @@
 /**
- * Pure region extraction. No Obsidian imports, so everything here is
- * unit-testable under plain Vitest.
+ * Pure region extraction. Imports nothing from Obsidian.
  *
  * A region is the part of a note that gets counted. It is defined either by
  * sentinel comments (`<!-- word count start -->` / `<!-- word count end -->`)
@@ -9,13 +8,10 @@
  *
  * Scanning for sentinels and headings ignores anything that only looks like
  * one: frontmatter, fenced code, inline code and (for headings) comments.
- * That matters in practice, because a note that documents this plugin will
- * contain example sentinels inside code blocks.
  *
  * The text this module returns is for `countWords`. For sentinel and
- * heading regions it always begins with a newline, so a region whose first
- * line happens to be `---` is never mistaken for frontmatter by the
- * counter.
+ * heading regions it always begins with a newline, so the counter never
+ * reads a first line of `---` as frontmatter.
  */
 
 import {
@@ -42,8 +38,7 @@ interface HeadingLine {
  * Declared Variables and Constants
 ******************************************************************************/
 
-// Same shapes as in count.ts, repeated here so the two modules stay
-// independent of each other.
+// Frontmatter, fences, inline code and comments.
 const FRONTMATTER = /^---[ \t]*\n(?:[\s\S]*?\n)?(?:---|\.\.\.)[ \t]*(?:\n|$)/;
 const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})(.*)$/;
 const INLINE_CODE = /(`+)[^`\n]+\1/g;
@@ -117,8 +112,7 @@ export function extractHeadingRegion(text: string, heading: string): HeadingRegi
  * otherwise the whole note.
  *
  * A configured heading that cannot be found yields an empty heading-mode
- * result with `found: false` rather than falling back to the whole note, so
- * the UI can say so instead of showing a misleading count.
+ * result with `found: false`; it does not fall back to the whole note.
  */
 export function extractRegion(text: string, config: RegionConfig = {}): RegionResult {
 	const source = normalizeNewlines(text);
@@ -191,8 +185,8 @@ function findHeadings(text: string): HeadingLine[] {
 		if (!ATX_HEADING.test(maskedLine)) {
 			continue;
 		}
-		// Read the text from the original line: masking blanks inline code
-		// and comments, which are legitimate parts of a heading's text.
+		// The heading text is taken from the original line, which keeps inline
+		// code and comments.
 		const original = ATX_HEADING.exec(text.slice(lineStart, lineEnd));
 		if (!original) {
 			continue;

@@ -1,7 +1,31 @@
 /* Word Census: panel, clock face and inline-block styling. Populated as the
    sidebar view and the wordcount processor are built. */
 
-.wordcensus-clock {
+.wordcensus-block {
+	display: inline-flex;
+	align-items: baseline;
+	gap: var(--size-4-2);
+	padding: var(--size-2-1) var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+}
+
+.wordcensus-block-count {
+	font-weight: var(--font-semibold);
+	font-variant-numeric: tabular-nums;
+}
+
+.wordcensus-block-detail {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.wordcensus-block-detail:empty {
+	display: none;
+}
+
+   .wordcensus-clock {
 	display: block;
 	width: 100%;
 	height: auto;

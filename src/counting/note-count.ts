@@ -4,8 +4,28 @@
  */
 
 import { countWords } from './count';
-import { extractRegion } from './region';
+import { extractHeadingRegion, extractRegion } from './region';
 import type { NoteCount, WordCensusSettings } from '../types';
+
+/**
+ * Counts the words under `heading`, whatever markers or configured heading
+ * the note has. A heading that cannot be found gives zero words with
+ * `headingFound: false`.
+ */
+export function countHeading(
+	text: string,
+	settings: WordCensusSettings,
+	heading: string
+): NoteCount {
+	const region = extractHeadingRegion(text, heading);
+	return {
+		heading: region?.heading ?? heading.trim(),
+		headingFound: region !== null,
+		mode: 'heading',
+		pairs: 0,
+		words: countWords(region?.text ?? '', settings)
+	};
+}
 
 /**
  * Counts `text` using the counting options in `settings`. A non-blank

@@ -1,24 +1,20 @@
 /**
- * Pure timer state machine. No Obsidian imports and no clock of its own:
- * every function that needs the time takes `now` (milliseconds, as from
- * `Date.now()`), so tests drive time directly and nothing here depends on
- * a timer firing.
+ * Pure timer state machine. Imports nothing from Obsidian and has no clock
+ * of its own: every function that needs the time takes `now` (milliseconds,
+ * as from `Date.now()`).
  *
  * Elapsed time is always computed from timestamps, never by counting
- * ticks. Mobile WebViews throttle or suspend timers in the background, so
- * the only trustworthy answer to "how long has this run?" is the
- * difference between two timestamps.
+ * ticks.
  *
  * There are three modes (stopwatch, countdown, session). Each keeps its
- * own independent run, so switching the selected mode never stops or
- * resets anything. `startTimer`, `pauseTimer` and `resetTimer` act on the
+ * own independent run; switching the selected mode never stops or resets
+ * anything. `startTimer`, `pauseTimer` and `resetTimer` act on the
  * selected mode; `tickTimer` and `freezeTimer` act on all of them.
  *
  * Every function returns a new state and never mutates its input. The ones
  * that can be no-ops (`startTimer`, `pauseTimer`, `tickTimer`,
  * `setCountdownDuration`) return the very same object when nothing
- * changes, so a caller that ticks once a second can skip re-rendering with
- * a reference check.
+ * changes.
  */
 
 import type {
@@ -71,8 +67,8 @@ export function elapsedMs(run: Run, now: number): number {
 
 /**
  * Formats a duration for display: `m:ss`, or `h:mm:ss` from one hour up.
- * Partial seconds round down by default. A countdown should pass `'ceil'`
- * so that `0:00` only ever appears once it has actually finished.
+ * Partial seconds round down by default. `'ceil'` rounds them up, so a
+ * countdown shows `0:00` only once it has finished.
  * Negative and non-finite values show as zero.
  */
 export function formatDuration(ms: number, rounding: 'floor' | 'ceil' = 'floor'): string {
@@ -288,10 +284,8 @@ export function startTimer(state: TimerState, now: number, binding?: SessionBind
 }
 
 /**
- * Stops a running countdown at zero. Call it on every tick and whenever
- * the app returns to the foreground: because elapsed time comes from
- * timestamps, a late call still lands the countdown exactly on its
- * duration rather than overshooting.
+ * Stops a running countdown at zero. A late call still lands the
+ * countdown exactly on its duration; it never overshoots.
  *
  * Applies to the countdown whichever mode is selected.
  */

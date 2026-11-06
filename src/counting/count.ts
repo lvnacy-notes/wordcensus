@@ -1,6 +1,5 @@
 /**
- * Pure word counting. No Obsidian imports, so everything here is
- * unit-testable under plain Vitest.
+ * Pure word counting. Imports nothing from Obsidian.
  *
  * `countWords` takes the text of a region (see region.ts) and returns how
  * many words it contains, after removing everything that is Markdown
@@ -11,9 +10,8 @@
  * non-whitespace containing at least one letter or number, so "well-known"
  * and "don't" are one word each. Scripts that are not written with spaces
  * between words (Chinese, Japanese, Thai, ...) are handed to
- * `Intl.Segmenter`, which is the only reliable way to find word boundaries
- * there. Where `Intl.Segmenter` does not exist, those scripts fall back to
- * one word per character.
+ * `Intl.Segmenter`. Where `Intl.Segmenter` does not exist, those scripts
+ * fall back to one word per character.
  */
 
 import type { CountOptions, WordSegmenter } from '../types';
@@ -41,8 +39,7 @@ export const DEFAULT_COUNT_OPTIONS: Readonly<CountOptions> = Object.freeze({
 
 const LETTER_OR_NUMBER = /[\p{L}\p{N}]/u;
 
-// Scripts written without spaces between words. Hangul is deliberately
-// absent: Korean uses spaces, so whitespace splitting is already right.
+// Scripts written without spaces between words. Hangul is not in this list.
 const NON_SPACED_SCRIPTS = [
 	'\\p{Script=Han}',
 	'\\p{Script=Hiragana}',
@@ -207,8 +204,7 @@ function processFootnoteDefinitions(text: string, includeFootnotes: boolean): st
  * Splits text into prose and fenced-code segments. A fence closes on a line
  * of the same character at least as long as the opening one; an unclosed
  * fence runs to the end of the text. Fence lines themselves are dropped.
- * Fences may be indented at any depth so that code inside list items is
- * recognised.
+ * Fences may be indented at any depth, including inside list items.
  */
 function splitFences(text: string): TextSegment[] {
 	const lines = text.split('\n');
@@ -277,7 +273,7 @@ function stripProse(text: string, options: CountOptions): string {
 		.replace(INLINE_FOOTNOTE, (_match, inner: string) => includeFootnotes ? ` ${ inner } ` : ' ')
 		.replace(FOOTNOTE_REFERENCE, ' ');
 
-	// Embeds must go before links: `![[x]]` contains `[[x]]`.
+	// Embeds are replaced before links.
 	result = result
 		.replace(EMBED_WIKILINK, (_match, inner: string) => includeEmbeds ? ` ${ wikilinkText(inner) } ` : ' ')
 		.replace(EMBED_IMAGE, (_match, alt: string) => includeEmbeds ? ` ${ alt } ` : ' ')

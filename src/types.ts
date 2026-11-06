@@ -9,6 +9,30 @@ export type RegionResult =
 
 export type TimerMode = 'stopwatch' | 'countdown' | 'session';
 
+/** Shows a `wordcount` code block's count in a host element and keeps it current. */
+export interface BlockController {
+	/** Releases the note subscription and removes the count. Safe to call when not open. */
+	close(): void;
+	/** Renders the count into `host`, replacing any count already open. */
+	open(host: HTMLElement): void;
+}
+
+/** What a block controller needs from the rest of the plugin. */
+export interface BlockControllerDeps {
+	options: BlockOptions;
+	/** The text of the note the block sits in, or null when it cannot be read. */
+	readText(): Promise<NoteText | null>;
+	store: Store;
+	/** Calls `handler` whenever the note or its text changes. Returns the stop function. */
+	watchNotes(handler: () => void): () => void;
+}
+
+/** The parameters in a `wordcount` code block's body. */
+export interface BlockOptions {
+	/** The heading this block counts under, or null to count the note's own region. */
+	heading: string | null;
+}
+
 /** An analog clock face that can be redrawn. */
 export interface ClockFace {
 	update(model: ClockModel): void;
@@ -48,6 +72,8 @@ export interface DataRow {
 export interface DriverEnvironment {
 	notify(message: string): void;
 	now(this: void): number;
+	/** Calls `handler` each time the app goes to the background. */
+	onBackground(handler: () => void): void;
 	/** Calls `handler` each time the app returns to the foreground. */
 	onForeground(handler: () => void): void;
 	/** Calls `handler` every `intervalMs` until the returned function is called. */
@@ -84,6 +110,15 @@ export interface NoteCount {
 export interface NoteInfo {
 	count: NoteCount;
 	path: string;
+	title: string;
+}
+
+/** A note's text, with what is needed to count it. */
+export interface NoteText {
+	/** The note's own `word-count-heading` property, or null. */
+	headingOverride: string | null;
+	path: string;
+	text: string;
 	title: string;
 }
 
@@ -200,6 +235,36 @@ export interface SessionStats {
 	wordsPerMinute: number | null;
 }
 
+/** The text and tooltip the status bar item shows. */
+export interface StatusBarContent {
+	text: string;
+	tooltip: string;
+}
+
+/** The status bar controller's lifetime. */
+export interface StatusBarController {
+	/** Shows the active note's count and keeps it current. Starting again restarts it. */
+	start(): void;
+	/** Stops watching and hides the item. Safe to call when not started. */
+	stop(): void;
+}
+
+/** What a status bar controller needs from the rest of the plugin. */
+export interface StatusBarControllerDeps {
+	display: StatusBarDisplay;
+	/** The active note and its count, or null when no Markdown note is open. */
+	readNote(): Promise<NoteInfo | null>;
+	store: Store;
+	/** Calls `handler` whenever the note or its text changes. Returns the stop function. */
+	watchNotes(handler: () => void): () => void;
+}
+
+/** The status bar item, reduced to what the controller does with it. */
+export interface StatusBarDisplay {
+	hide(): void;
+	show(text: string, tooltip: string): void;
+}
+
 export interface Store {
 	readonly settings: WordCensusSettings;
 	readonly timer: TimerState;
@@ -209,6 +274,8 @@ export interface Store {
 	load(): Promise<void>;
 	/** Writes the current settings, and the timer if the user is keeping it. */
 	save(): Promise<void>;
+	/** Calls `listener` after every settings change. Returns the unsubscribe function. */
+	subscribe(listener: () => void): () => void;
 	/** Applies a change to the settings, normalized, then saves. */
 	updateSettings(change: Partial<WordCensusSettings>): Promise<void>;
 }

@@ -14,7 +14,7 @@ Named, not inferred from folder names (philosophy Section 2). These get tested h
 | 4 | **Counting degrades gracefully where `Intl.Segmenter` is missing** (older mobile WebViews) | Mobile-first: the counter must not throw on a runtime the author does not test on (outside our control) | Covered |
 | 5 | **Timer accounting** (`timer.ts`): elapsed time comes from timestamps, paused time is never counted, a restored timer comes back paused, a countdown stops at zero, malformed saved timer data is normalized (`restoreTimer`) | Background throttling on mobile makes tick-counting wrong, and corrupted time is user-visible (silent and wrong) | Covered |
 | 6 | **Settings survive malformed or legacy data** (`normalizeSettings`), including handing the saved timer to `restoreTimer` | A bad `data.json` must never stop the plugin loading or show `NaN` (destructive) | Covered |
-| 7 | **View and processor lifecycles do not leak**: open, close and reopen the sidebar; unload a `wordcount` block | Leaked listeners and intervals accumulate silently across a long session (cumulative) | Pending `view.ts`, `processor.ts` |
+| 7 | **View and processor lifecycles do not leak**: open, close and reopen the sidebar; unload a `wordcount` block | Leaked listeners and intervals accumulate silently across a long session (cumulative) | Sidebar panel covered (`panel/panel-controller.test.ts`: closing releases the timer and note subscriptions, reopening leaves exactly one, a late note read is ignored). `block/block-controller.test.ts` covers the same for a `wordcount` block: closing stops watching, reopening leaves one, a late read is ignored |
 
 ## Trust boundaries in this project
 
@@ -26,17 +26,19 @@ Test our usage, not the dependency (philosophy Section 3). Here that means:
 
 ## Layout
 
-- Co-located by default: `count.ts` + `count.test.ts`.
+- Co-located by default: `counting/count.ts` + `counting/count.test.ts`.
 - `src/test/` holds the tests where more than one module cooperates and the assertion is about the combination. They sit directly in it with no subfolder, because everything else is co-located and there is nothing to separate them from. Currently `region-count.test.ts`: region extraction feeding the counter. A `conf.test.ts`, if one is ever raised, would sit beside them.
-- `src/test/fakes.ts` holds `buildSettings()` and the shared malformed-settings fixture, `MALFORMED_SETTINGS`.
+- `src/test/fakes.ts` holds `buildSettings()`, the shared malformed-settings fixture `MALFORMED_SETTINGS`, `fakePersistence()` and `fakeEnvironment()`. `src/test/test-types.ts` holds the exported types the tests use.
 - The Vitest glob `src/**/*.test.ts` covers both locations.
 
 ## Notes on applying the philosophy
 
 - **Build tool: esbuild**, a hard rule for Obsidian plugins (philosophy Section 9). Vitest handles tests only. Vite appears in `devDependencies` because Vitest runs on it, and it is never used to build.
 - **No React.** The DOM-facing tests (clock face, sidebar view, processor) follow the same rule of one case per logical branch, and the cleanup rule applies: anything a test adds to the document is removed in an explicit `afterEach`.
-- **Time-dependent logic** (`timer.ts`) takes `now` as an argument instead of reading a clock, so tests pass explicit timestamps and need neither fake timers nor waits. Fake timers come back only where something real is scheduled, such as the store's tick interval.
-- **Region and count text** are plain strings, so the unit tests need no Obsidian fakes. `settings.ts` is pure too. `store.ts` is pure too: persistence and the clock are injected, so its tests need no fakes beyond a small in-memory persistence. Only `view.ts`, `processor.ts`, `heading-modal.ts`, `settings-tab.ts`, `runtime.ts` and `main.ts` touch Obsidian.
+- **Time-dependent logic** (`timer.ts`) takes `now` as an argument instead of reading a clock, so tests pass explicit timestamps and need neither fake timers nor waits. `timer-driver.ts` takes its scheduler, clock, foreground and background hooks as injected fakes (`fakeEnvironment()`), so its tests need neither fake timers nor waits either.
+- **Pure modules** need no Obsidian fakes: `counting/` (`count.ts`, `region.ts`, `note-count.ts`), `settings/` (`settings.ts`, `store.ts`, with persistence and the clock injected), `timer/` (`timer.ts`, `timer-driver.ts`) and `panel/` (`panel-model.ts`, `clock-face.ts`, `panel.ts`, `panel-controller.ts`), `block/` (`block-model.ts`, `block-controller.ts`) and `status-bar/` (`status-bar-model.ts`, `status-bar-controller.ts`).
+- **DOM-facing modules** (`clock-face.ts`, `panel.ts`, `panel-controller.ts`, `block-controller.ts`) run under jsdom. `panel.ts` and `block-controller.ts` build elements with Obsidian's global `createEl`, which `obsidian-test-mocks` provides through its Vitest setup file.
+- **Obsidian-facing modules** are `obsidian/` (`note-source.ts`, `processor.ts`, `SettingsTab.ts`, `status-bar.ts`, `View.ts`, `WordCountBlock.ts`), `commands/`, `runtime.ts` and `main.ts`.
 
 ## Vitest configuration
 
@@ -67,7 +69,8 @@ The Ratchet is in place as the philosophy defines it (Section 4). In this projec
 - Obsidian's and CodeMirror's own internals (see trust boundaries above).
 - CSS and visual output. The clock face's hand angles are computed by a pure function and are tested; how the SVG looks is not.
 - Trivial wrappers, for example a command registration that only calls a function.
-- The settings tab (`settings-tab.ts`), which only declares the settings and forwards reads and writes to the store. Its one piece of logic, routing every edit through `normalizeSettings`, now lives in `store.updateSettings` and is tested in `store.test.ts`.
+- The settings tab (`obsidian/SettingsTab.ts`), which only declares the settings and forwards reads and writes to the store. Its one piece of logic, routing every edit through `normalizeSettings`, now lives in `store.updateSettings` and is tested in `store.test.ts`.
+- `obsidian/View.ts`, `obsidian/WordCountBlock.ts`, `obsidian/processor.ts`, `obsidian/note-source.ts` and `commands/open-panel.ts`: thin shells over `ItemView`, `MarkdownRenderChild`, the vault and the command registry. Their logic lives in `panel-controller.ts`, `block-controller.ts`, `block-model.ts`, `note-count.ts` and `panel-model.ts`, which are tested.
 - `main.ts` and `runtime.ts`. `main.ts` is lifecycle only and `runtime.ts` is wiring only (construct the store, register features); any logic that creeps into either belongs in a pure module with its own tests.
 
 ## Known gaps
@@ -93,5 +96,3 @@ The philosophy's rules (Section 8) apply as written. In this project:
 ## Open implementation items
 
 - Whether `eslint-plugin-obsidianmd` false-positives on test files: verify at the first lint run that includes them.
-- Whether `obsidian-test-mocks` supports what `view.ts` needs from `ItemView` and `WorkspaceLeaf` at runtime: verify when the view is built.
-- CI job structure and where the Ratchet baseline is stored between runs.

@@ -32,14 +32,19 @@ export function buildSettings(overrides: Partial<WordCensusSettings> = {}): Word
 /** A driver environment with a clock, scheduler and foreground hook that tests drive by hand. */
 export function fakeEnvironment(startTime = 1_000_000): FakeEnvironment {
 	let tickHandler: (() => void) | null = null;
+	let backgroundHandler: (() => void) | null = null;
 	let foregroundHandler: (() => void) | null = null;
 	const environment: FakeEnvironment = {
 		cancelled: 0,
+		goToBackground: () => backgroundHandler?.(),
 		notices: [],
 		notify: (message) => {
 			environment.notices.push(message);
 		},
 		now: () => environment.time,
+		onBackground: (handler) => {
+			backgroundHandler = handler;
+		},
 		onForeground: (handler) => {
 			foregroundHandler = handler;
 		},

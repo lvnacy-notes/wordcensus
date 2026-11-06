@@ -6,6 +6,7 @@ import type { DriverEnvironment, Persistence } from '../types';
 
 export interface FakeEnvironment extends DriverEnvironment {
 	cancelled: number;
+	goToBackground(): void;
 	notices: string[];
 	returnToForeground(): void;
 	scheduled: number;

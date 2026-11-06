@@ -74,6 +74,23 @@ describe('createStore', () => {
 		});
 	});
 
+	describe('subscribe', () => {
+		it('tells listeners about settings changes until they unsubscribe', async () => {
+			const { persistence } = fakePersistence(undefined);
+			const store = createStore(persistence, () => T0);
+			let calls = 0;
+			const unsubscribe = store.subscribe(() => {
+				calls += 1;
+			});
+
+			await store.updateSettings({ heading: 'Draft' });
+			unsubscribe();
+			await store.updateSettings({ heading: 'Other' });
+
+			expect(calls).toBe(1);
+		});
+	});
+
 	describe('updateSettings', () => {
 		it('normalizes the change, keeps it, and saves the result', async () => {
 			const { persistence, saved } = fakePersistence(undefined);

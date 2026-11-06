@@ -2,17 +2,25 @@
  * Wires the plugin's features together. `main.ts` only starts and stops it.
  */
 
-import { type Plugin, Notice } from 'obsidian';
+import {
+	Notice,
+	Platform,
+	type Plugin
+} from 'obsidian';
 import { buildInvokeCommand as buildOpenPanelCommand } from './commands/open-panel';
 import { readNote, watchNotes } from './obsidian/note-source';
-import { createPanelController } from './panel/panel-controller';
+import { BLOCK_LANGUAGE, buildProcessor } from './obsidian/processor';
 import { WordCensusSettingTab } from './obsidian/SettingsTab';
-import { createStore } from './settings/store';
-import type { PanelController, Runtime } from './types';
-import { createTimerDriver } from './timer/timer-driver';
+import { buildStatusBar } from './obsidian/status-bar';
 import { VIEW_TYPE, WordCensusView } from './obsidian/View';
+import { createPanelController } from './panel/panel-controller';
+import { createStore } from './settings/store';
+import { createTimerDriver } from './timer/timer-driver';
 import type {
 	DriverEnvironment,
+	PanelController,
+	Runtime,
+	StatusBarController,
 	Store,
 	TimerDriver
 } from './types';
@@ -25,7 +33,11 @@ function buildController(
 	return createPanelController({
 		driver,
 		now: Date.now,
-		readNote: (path) => readNote(plugin.app, store, path),
+		readNote: (path) => readNote(
+			plugin.app,
+			store,
+			path
+		),
 		store,
 		watchNotes: (handler) => watchNotes(plugin.app, handler)
 	});
@@ -37,6 +49,13 @@ function buildDriverEnvironment(plugin: Plugin): DriverEnvironment {
 			new Notice(message);
 		},
 		now: Date.now,
+		onBackground: (handler) => {
+			plugin.registerDomEvent(document, 'visibilitychange', () => {
+				if (document.visibilityState === 'hidden') {
+					handler();
+				}
+			});
+		},
 		onForeground: (handler) => {
 			plugin.registerDomEvent(document, 'visibilitychange', () => {
 				if (document.visibilityState === 'visible') {
@@ -52,6 +71,16 @@ function buildDriverEnvironment(plugin: Plugin): DriverEnvironment {
 	};
 }
 
+/** Adds the status bar item on desktop; mobile has no status bar. */
+function startStatusBar(plugin: Plugin, store: Store): StatusBarController | null {
+	if (Platform.isMobile) {
+		return null;
+	}
+	const statusBar = buildStatusBar(plugin, store);
+	statusBar.start();
+	return statusBar;
+}
+
 export async function startRuntime(plugin: Plugin): Promise<Runtime> {
 	const store = createStore(
 		{ load: () => plugin.loadData(), save: (data) => plugin.saveData(data) },
@@ -64,9 +93,21 @@ export async function startRuntime(plugin: Plugin): Promise<Runtime> {
 
 	plugin.registerView(
 		VIEW_TYPE,
-		(leaf) => new WordCensusView(leaf, buildController(plugin, store, driver))
+		(leaf) => new WordCensusView(
+			leaf,
+			buildController(
+				plugin,
+				store,
+				driver
+			)
+		)
+	);
+	plugin.registerMarkdownCodeBlockProcessor(
+		BLOCK_LANGUAGE,
+		buildProcessor(plugin.app, store)
 	);
 	plugin.addCommand(buildOpenPanelCommand(plugin.app));
+	const statusBar = startStatusBar(plugin, store);
 	plugin.addSettingTab(new WordCensusSettingTab(
 		plugin.app,
 		plugin,
@@ -76,6 +117,7 @@ export async function startRuntime(plugin: Plugin): Promise<Runtime> {
 	return {
 		stop: () => {
 			driver.end();
+			statusBar?.stop();
 			return store.save();
 		}
 	};

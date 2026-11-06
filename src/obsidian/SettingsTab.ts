@@ -13,13 +13,12 @@ import type {
 	WordCensusSettings
 } from '../types';
 
-/** Text input commits on every keystroke, so it is debounced; every other control commits once. */
+/** The settings whose edits are debounced before they are saved. */
 const DEBOUNCED_KEYS: ReadonlySet<keyof WordCensusSettings> = new Set(['heading']);
 
 export class WordCensusSettingTab extends PluginSettingTab {
-	private readonly store: Store;
-	// Created once, not inside getSettingDefinitions(), which reruns on every render.
 	private readonly debouncedUpdate: Debouncer<[Partial<WordCensusSettings>], void>;
+	private readonly store: Store;
 
 	constructor(
 		app: App,
@@ -28,43 +27,18 @@ export class WordCensusSettingTab extends PluginSettingTab {
 	) {
 		super(app, plugin);
 		this.store = store;
-		this.debouncedUpdate = debounce((change: Partial<WordCensusSettings>) => {
-			void this.updateSettings(change);
-		}, 500, true);
+		this.debouncedUpdate = debounce(
+			(change: Partial<WordCensusSettings>) => {
+				void this.updateSettings(change);
+			},
+			500,
+			true
+		);
 	}
 
-	/** Reads from the store, not from `plugin.settings`, which this plugin does not have. */
+	/** Reads the value from the store. */
 	getControlValue(key: keyof WordCensusSettings): WordCensusSettings[keyof WordCensusSettings] {
 		return this.store.settings[key];
-	}
-
-	/**
-	 * Replaces Obsidian's default write path so every edit goes through the
-	 * store (normalized, then saved). The cast is needed because `key` spans
-	 * every settings field while `value` is only ever a control's boolean,
-	 * string or number; the store normalizes whatever arrives.
-	 */
-	setControlValue(key: keyof WordCensusSettings, value: boolean | number | string): void | Promise<void> {
-		const change = { [key]: value } as Partial<WordCensusSettings>;
-		if (DEBOUNCED_KEYS.has(key)) {
-			this.debouncedUpdate(change);
-			return;
-		}
-		return this.updateSettings(change);
-	}
-
-	/** Applies any pending debounced edit so closing the tab within the delay loses nothing. */
-	hide(): void {
-		this.debouncedUpdate.run();
-	}
-
-	private async updateSettings(change: Partial<WordCensusSettings>): Promise<void> {
-		try {
-			await this.store.updateSettings(change);
-		} catch (error) {
-			console.error('Word Census: failed to save settings', error);
-			new Notice('Word Census: failed to save your settings. Please try again.');
-		}
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem<keyof WordCensusSettings>[] {
@@ -72,7 +46,11 @@ export class WordCensusSettingTab extends PluginSettingTab {
 			{
 				name: 'Heading',
 				desc: 'Count only the words under this heading when a note has no start and end markers. Leave blank to count the whole note.',
-				control: { type: 'text', key: 'heading', placeholder: 'Draft' }
+				control: {
+					type: 'text',
+					key: 'heading',
+					placeholder: 'Draft'
+				}
 			},
 			{
 				name: 'Include code blocks',
@@ -123,5 +101,30 @@ export class WordCensusSettingTab extends PluginSettingTab {
 				]
 			}
 		];
+	}
+
+	/** Applies any pending debounced edit, then closes the tab. */
+	hide(): void {
+		this.debouncedUpdate.run();
+		super.hide();
+	}
+
+	/** Writes the value through the store, which normalizes it and saves. */
+	setControlValue(key: keyof WordCensusSettings, value: boolean | number | string): void | Promise<void> {
+		const change = { [key]: value } as Partial<WordCensusSettings>;
+		if (DEBOUNCED_KEYS.has(key)) {
+			this.debouncedUpdate(change);
+			return;
+		}
+		return this.updateSettings(change);
+	}
+
+	private async updateSettings(change: Partial<WordCensusSettings>): Promise<void> {
+		try {
+			await this.store.updateSettings(change);
+		} catch (error) {
+			console.error('Word Census: failed to save settings', error);
+			new Notice('Word Census: failed to save your settings. Please try again.');
+		}
 	}
 }
