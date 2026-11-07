@@ -23,7 +23,7 @@ export interface BlockControllerDeps {
 	/** The text of the note the block sits in, or null when it cannot be read. */
 	readText(): Promise<NoteText | null>;
 	store: Store;
-	/** Calls `handler` whenever the note or its text changes. Returns the stop function. */
+	/** Calls `handler` whenever the note, its text or a setting changes. Returns the stop function. */
 	watchNotes(handler: () => void): () => void;
 }
 
@@ -61,6 +61,12 @@ export interface CountOptions {
 	 * not resolve and count the embedded note's contents.
 	 */
 	includeEmbeds: boolean;
+}
+
+/** A function whose calls are delayed and merged into one, and that can be cancelled. */
+export interface Debounced {
+	(): void;
+	cancel(): void;
 }
 
 /** One label and value shown below the clock. */
@@ -122,6 +128,26 @@ export interface NoteText {
 	title: string;
 }
 
+/**
+ * One shared watcher over the vault, so the panel, the status bar and every
+ * `wordcount` block listen through a single set of Obsidian listeners.
+ */
+export interface NoteWatcher {
+	/** Stops listening to Obsidian and drops every subscriber. */
+	dispose(): void;
+	/** Calls `handler` with the path of a note or folder just deleted. Returns the stop function. */
+	onDelete(handler: (path: string) => void): () => void;
+	/** Calls `handler` with the old and new path of a note or folder just moved or renamed. Returns the stop function. */
+	onMove(handler: (oldPath: string, newPath: string) => void): () => void;
+	/**
+	 * Calls `handler` when the active note changes, while a note is being
+	 * edited (debounced), when a setting changes, when anything is moved or
+	 * deleted and, as `options` allows, when a note's properties change.
+	 * Returns the stop function.
+	 */
+	watch(handler: () => void, options?: WatchOptions): () => void;
+}
+
 /** A rendered sidebar panel. */
 export interface Panel {
 	/** Removes the panel from the page. */
@@ -152,7 +178,7 @@ export interface PanelControllerDeps {
 	/** Counts a note's region: the note at `path`, or the active note when omitted. Null when there is none. */
 	readNote(path?: string): Promise<NoteInfo | null>;
 	store: Store;
-	/** Calls `handler` whenever the active note or its text changes. Returns the stop function. */
+	/** Calls `handler` whenever the active note, its text or a setting changes. Returns the stop function. */
 	watchNotes(handler: () => void): () => void;
 }
 
@@ -223,8 +249,20 @@ export interface SessionBinding {
 	baselineWords: number;
 }
 
+/** What a session reported when its note was deleted and it ended. */
+export interface SessionResult {
+	/** The note the session was bound to. */
+	path: string;
+	/** Words per minute at the end, or null when the last count was unknown. */
+	wordsPerMinute: number | null;
+	/** Net words at the end, or null when the last count was unknown. */
+	wordsWritten: number | null;
+}
+
 export interface SessionRun extends Run {
 	binding: SessionBinding | null;
+	/** Set when the session ended because its note was deleted. Cleared by reset. */
+	result: SessionResult | null;
 }
 
 export interface SessionStats {
@@ -255,7 +293,7 @@ export interface StatusBarControllerDeps {
 	/** The active note and its count, or null when no Markdown note is open. */
 	readNote(): Promise<NoteInfo | null>;
 	store: Store;
-	/** Calls `handler` whenever the note or its text changes. Returns the stop function. */
+	/** Calls `handler` whenever the note, its text or a setting changes. Returns the stop function. */
 	watchNotes(handler: () => void): () => void;
 }
 
@@ -285,7 +323,15 @@ export interface TimerDriver {
 	begin(): void;
 	/** Stops ticking and drops every subscriber. */
 	end(): void;
+	/**
+	 * Ends the session if its note is at `path` or inside that folder, because
+	 * it was deleted: pauses it, unbinds it and keeps its final figures.
+	 * `currentWords` is the note's last known count, or null if there is none.
+	 */
+	endSession(path: string, currentWords: number | null): void;
 	pause(): void;
+	/** Follows the session's note when it, or a folder holding it, is moved or renamed. */
+	rebind(oldPath: string, newPath: string): void;
 	reset(): void;
 	selectMode(mode: TimerMode): void;
 	setCountdownDuration(durationMs: number): void;
@@ -299,6 +345,33 @@ export interface TimerState {
 	stopwatch: Run;
 	countdown: CountdownRun;
 	session: SessionRun;
+}
+
+/** Which notes' property changes a watcher cares about. */
+export interface WatchOptions {
+	/** Also tell the watcher when the active note's properties change. */
+	active?: boolean;
+	/** Also tell the watcher when these notes' properties change. Read again for every event. */
+	paths?: () => readonly string[];
+}
+
+/** The Obsidian events a note watcher listens to. Each returns the function that stops listening. */
+export interface WatcherSources {
+	/** The path of the active note, or null when none is open. */
+	activePath(): string | null;
+	debounce(handler: () => void, delayMs: number): Debounced;
+	/** The active note changed. */
+	onActive(handler: () => void): () => void;
+	/** A note or folder was deleted. */
+	onDelete(handler: (path: string) => void): () => void;
+	/** Text was edited. Fires on every keystroke. */
+	onEdit(handler: () => void): () => void;
+	/** The properties of the note at the given path changed. Fires for any note in the vault. */
+	onMetadata(handler: (path: string) => void): () => void;
+	/** A note or folder was moved or renamed. */
+	onMove(handler: (oldPath: string, newPath: string) => void): () => void;
+	/** A setting changed. */
+	onSettings(handler: () => void): () => void;
 }
 
 export interface WordCensusSettings extends CountOptions {

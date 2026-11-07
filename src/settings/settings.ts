@@ -13,9 +13,11 @@
  */
 
 import { DEFAULT_COUNT_OPTIONS } from '../counting/count';
+import { isRecord } from '../guards';
 import {
 	DEFAULT_COUNTDOWN_MS,
 	MAX_COUNTDOWN_MS,
+	MINUTE_MS,
 	createTimer,
 	freezeTimer,
 	restoreTimer,
@@ -33,13 +35,13 @@ import type {
 
 export const DEFAULT_SETTINGS: Readonly<WordCensusSettings> = Object.freeze({
 	...DEFAULT_COUNT_OPTIONS,
-	defaultCountdownMinutes: DEFAULT_COUNTDOWN_MS / 60000,
+	defaultCountdownMinutes: DEFAULT_COUNTDOWN_MS / MINUTE_MS,
 	heading: '',
 	keepTimerState: false,
 	showStatusBar: true
 });
 
-export const MAX_COUNTDOWN_MINUTES = MAX_COUNTDOWN_MS / 60000;
+export const MAX_COUNTDOWN_MINUTES = MAX_COUNTDOWN_MS / MINUTE_MS;
 export const MIN_COUNTDOWN_MINUTES = 1;
 
 /******************************************************************************
@@ -63,11 +65,7 @@ export function buildSaveData(settings: WordCensusSettings, timer: TimerState, n
 
 /** A new timer whose countdown has the length chosen in settings. */
 function freshTimer(settings: WordCensusSettings): TimerState {
-	return setCountdownDuration(createTimer(), settings.defaultCountdownMinutes * 60 * 1000);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
+	return setCountdownDuration(createTimer(), settings.defaultCountdownMinutes * MINUTE_MS);
 }
 
 /**

@@ -40,10 +40,13 @@ async function buildHarness(initial: unknown = undefined) {
 		display,
 		readNote: () => Promise.resolve(note),
 		store,
+		// Like the real watcher, this also tells the controller when a setting changes.
 		watchNotes: (handler) => {
 			changed = handler;
 			watching += 1;
+			const unsubscribe = store.subscribe(handler);
 			return () => {
+				unsubscribe();
 				watching -= 1;
 			};
 		}

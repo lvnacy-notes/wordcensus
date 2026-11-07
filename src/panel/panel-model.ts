@@ -4,7 +4,9 @@
  * same model.
  */
 
+import { buildSummary } from '../counting/summary';
 import {
+	MINUTE_MS,
 	elapsedMs,
 	formatDuration,
 	isCountdownFinished,
@@ -16,10 +18,10 @@ import {
 import type {
 	ClockModel,
 	DataRow,
-	NoteCount,
 	PanelInput,
 	PanelModel,
-	PanelSummary
+	SessionBinding,
+	SessionResult
 } from '../types';
 
 /******************************************************************************
@@ -41,7 +43,7 @@ function buildCountdownModel(base: BaseModel, input: PanelInput): PanelModel {
 		...base,
 		clock,
 		durationEditable: !base.running,
-		durationMinutes: Math.max(1, Math.round(countdown.durationMs / 60000)),
+		durationMinutes: Math.max(1, Math.round(countdown.durationMs / MINUTE_MS)),
 		rows: [
 			{ label: 'Remaining', value: formatDuration(remaining, 'ceil') },
 			{ label: 'Duration', value: formatDuration(countdown.durationMs) }
@@ -85,6 +87,34 @@ export function buildPanelModel(input: PanelInput): PanelModel {
 	}
 }
 
+/**
+ * A session that ended because its note was deleted: the clock stays at its
+ * final time, the figures are the ones saved when it ended, and Start waits
+ * for a reset.
+ */
+function buildEndedSessionModel(
+	base: BaseModel,
+	input: PanelInput,
+	result: SessionResult
+): PanelModel {
+	const { active, now, timer } = input;
+	const elapsed = elapsedMs(timer.session, now);
+	return {
+		...base,
+		clock: { ms: elapsed, wedge: null },
+		durationEditable: false,
+		durationMinutes: null,
+		rows: [
+			{ label: 'Elapsed', value: formatDuration(elapsed) },
+			{ label: 'Words written', value: formatWordsWritten(result.wordsWritten) },
+			{ label: 'Words per minute', value: formatRate(result.wordsPerMinute) },
+			{ label: 'Region words', value: active === null ? '—' : String(active.count.words) },
+			{ label: 'Note', value: `${ fileTitle(result.path) } (deleted)` }
+		],
+		startDisabled: true
+	};
+}
+
 function buildSessionModel(base: BaseModel, input: PanelInput): PanelModel {
 	const {
 		active,
@@ -92,17 +122,27 @@ function buildSessionModel(base: BaseModel, input: PanelInput): PanelModel {
 		now,
 		timer
 	} = input;
+	const { result } = timer.session;
+	if (result !== null) {
+		return buildEndedSessionModel(
+			base,
+			input,
+			result
+		);
+	}
+	// A null count means "can't measure", not zero words: measuring against zero
+	// would report every word of the baseline as deleted.
 	const stats = sessionStats(
 		timer,
 		now,
-		bound?.count.words ?? 0
+		bound?.count.words ?? null
 	);
 	const rows: DataRow[] = [
 		{ label: 'Elapsed', value: formatDuration(stats.elapsedMs) },
 		{ label: 'Words written', value: formatWordsWritten(stats.wordsWritten) },
 		{ label: 'Words per minute', value: formatRate(stats.wordsPerMinute) },
 		{ label: 'Region words', value: active === null ? '—' : String(active.count.words) },
-		{ label: 'Note', value: bound?.title ?? 'Not bound' }
+		{ label: 'Note', value: bound?.title ?? boundNoteName(timer.session.binding) }
 	];
 	return {
 		...base,
@@ -114,32 +154,22 @@ function buildSessionModel(base: BaseModel, input: PanelInput): PanelModel {
 	};
 }
 
-/** The headline and detail line for a count, or for no note when `count` is null. */
-export function buildSummary(count: NoteCount | null): PanelSummary {
-	if (count === null) {
-		return { detail: '', headline: 'No note open' };
-	}
-	switch (count.mode) {
-		case 'sentinel':
-			return {
-				detail: `Between markers (${ count.pairs } ${ count.pairs === 1 ? 'region' : 'regions' })`,
-				headline: formatWords(count.words)
-			};
-		case 'heading':
-			return count.headingFound
-				? { detail: `Under “${ count.heading }”`, headline: formatWords(count.words) }
-				: { detail: `No heading “${ count.heading }” in this note`, headline: 'Heading not found' };
-		case 'note':
-			return { detail: 'Whole note', headline: formatWords(count.words) };
-	}
+/**
+ * What to show for the session's note when its count isn't available: the
+ * file name from the binding's path, or "Not bound" for a session with none.
+ */
+function boundNoteName(binding: SessionBinding | null): string {
+	return binding === null ? 'Not bound' : fileTitle(binding.path);
+}
+
+/** A note's name as Obsidian shows it: the file name without its folders or `.md`. */
+function fileTitle(path: string): string {
+	const fileName = path.split('/').pop() ?? path;
+	return fileName.replace(/\.md$/, '');
 }
 
 function formatRate(rate: number | null): string {
 	return rate === null ? '—' : String(Math.round(rate));
-}
-
-function formatWords(words: number): string {
-	return `${ words } ${ words === 1 ? 'word' : 'words' }`;
 }
 
 function formatWordsWritten(written: number | null): string {

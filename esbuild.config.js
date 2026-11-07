@@ -13,11 +13,6 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = process.argv[2] === 'production';
 
-// Always build to ./dist/ - no vault path baked into the build tool. Point
-// your local dev vault's plugin folder at this directory with a one-time
-// symlink instead. Every other dev/prod distinction (sourcemaps, NODE_ENV,
-// watch-vs-rebuild below) branches on `prod`; only the output *location* is
-// not conditional.
 const outdir = './dist/';
 
 const context = await esbuild.context({
@@ -78,5 +73,5 @@ if (prod) {
 	process.exit(0);
 } else {
 	await context.watch();
-	await context.serve(); // This enables the 'live reload'
+	await context.serve();
 }

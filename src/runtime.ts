@@ -8,38 +8,51 @@ import {
 	type Plugin
 } from 'obsidian';
 import { buildInvokeCommand as buildOpenPanelCommand } from './commands/open-panel';
-import { readNote, watchNotes } from './obsidian/note-source';
+import { readNote } from './obsidian/note-source';
 import { BLOCK_LANGUAGE, buildProcessor } from './obsidian/processor';
 import { WordCensusSettingTab } from './obsidian/SettingsTab';
 import { buildStatusBar } from './obsidian/status-bar';
 import { VIEW_TYPE, WordCensusView } from './obsidian/View';
+import { buildWatcherSources } from './obsidian/watcher-sources';
 import { createPanelController } from './panel/panel-controller';
 import { createStore } from './settings/store';
+import { createLastCounts } from './timer/last-counts';
 import { createTimerDriver } from './timer/timer-driver';
 import type {
 	DriverEnvironment,
+	NoteInfo,
+	NoteWatcher,
 	PanelController,
 	Runtime,
 	StatusBarController,
 	Store,
 	TimerDriver
 } from './types';
+import { createNoteWatcher } from './watcher/note-watcher';
+
+/** The path of the session's note, as a list for a watcher: empty when there is none. */
+function boundPaths(store: Store): string[] {
+	const { binding } = store.timer.session;
+	return binding === null ? [] : [binding.path];
+}
 
 function buildController(
-	plugin: Plugin,
 	store: Store,
-	driver: TimerDriver
+	driver: TimerDriver,
+	watcher: NoteWatcher,
+	read: (path?: string) => Promise<NoteInfo | null>
 ): PanelController {
 	return createPanelController({
 		driver,
 		now: Date.now,
-		readNote: (path) => readNote(
-			plugin.app,
-			store,
-			path
-		),
+		readNote: read,
 		store,
-		watchNotes: (handler) => watchNotes(plugin.app, handler)
+		// The panel shows the active note and the session's note, so those are
+		// the two whose properties matter.
+		watchNotes: (handler) => watcher.watch(handler, {
+			active: true,
+			paths: () => boundPaths(store)
+		})
 	});
 }
 
@@ -72,11 +85,21 @@ function buildDriverEnvironment(plugin: Plugin): DriverEnvironment {
 }
 
 /** Adds the status bar item on desktop; mobile has no status bar. */
-function startStatusBar(plugin: Plugin, store: Store): StatusBarController | null {
+function startStatusBar(
+	plugin: Plugin,
+	store: Store,
+	watcher: NoteWatcher,
+	readActiveNote: () => Promise<NoteInfo | null>
+): StatusBarController | null {
 	if (Platform.isMobile) {
 		return null;
 	}
-	const statusBar = buildStatusBar(plugin, store);
+	const statusBar = buildStatusBar(
+		plugin,
+		store,
+		watcher,
+		readActiveNote
+	);
 	statusBar.start();
 	return statusBar;
 }
@@ -91,23 +114,52 @@ export async function startRuntime(plugin: Plugin): Promise<Runtime> {
 	const driver = createTimerDriver(store, buildDriverEnvironment(plugin));
 	driver.begin();
 
+	// One watcher serves the panel, the status bar and every block.
+	const watcher = createNoteWatcher(buildWatcherSources(plugin.app, store));
+	// Remembers the session's note's count, which can't be read once it is deleted.
+	const lastCounts = createLastCounts(() => store.timer.session.binding?.path ?? null);
+	const readObserved = async (path?: string): Promise<NoteInfo | null> => lastCounts.observe(
+		await readNote(
+			plugin.app,
+			store,
+			path
+		)
+	);
+	watcher.onMove((oldPath, newPath) => {
+		driver.rebind(oldPath, newPath);
+	});
+	watcher.onDelete((path) => {
+		const { binding } = store.timer.session;
+		driver.endSession(path, binding === null ? null : lastCounts.recall(binding.path));
+	});
+
 	plugin.registerView(
 		VIEW_TYPE,
 		(leaf) => new WordCensusView(
 			leaf,
 			buildController(
-				plugin,
 				store,
-				driver
+				driver,
+				watcher,
+				readObserved
 			)
 		)
 	);
 	plugin.registerMarkdownCodeBlockProcessor(
 		BLOCK_LANGUAGE,
-		buildProcessor(plugin.app, store)
+		buildProcessor(
+			plugin.app,
+			store,
+			watcher
+		)
 	);
 	plugin.addCommand(buildOpenPanelCommand(plugin.app));
-	const statusBar = startStatusBar(plugin, store);
+	const statusBar = startStatusBar(
+		plugin,
+		store,
+		watcher,
+		() => readObserved()
+	);
 	plugin.addSettingTab(new WordCensusSettingTab(
 		plugin.app,
 		plugin,
@@ -118,6 +170,7 @@ export async function startRuntime(plugin: Plugin): Promise<Runtime> {
 		stop: () => {
 			driver.end();
 			statusBar?.stop();
+			watcher.dispose();
 			return store.save();
 		}
 	};

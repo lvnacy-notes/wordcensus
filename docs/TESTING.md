@@ -36,9 +36,9 @@ Test our usage, not the dependency (philosophy Section 3). Here that means:
 - **Build tool: esbuild**, a hard rule for Obsidian plugins (philosophy Section 9). Vitest handles tests only. Vite appears in `devDependencies` because Vitest runs on it, and it is never used to build.
 - **No React.** The DOM-facing tests (clock face, sidebar view, processor) follow the same rule of one case per logical branch, and the cleanup rule applies: anything a test adds to the document is removed in an explicit `afterEach`.
 - **Time-dependent logic** (`timer.ts`) takes `now` as an argument instead of reading a clock, so tests pass explicit timestamps and need neither fake timers nor waits. `timer-driver.ts` takes its scheduler, clock, foreground and background hooks as injected fakes (`fakeEnvironment()`), so its tests need neither fake timers nor waits either.
-- **Pure modules** need no Obsidian fakes: `counting/` (`count.ts`, `region.ts`, `note-count.ts`), `settings/` (`settings.ts`, `store.ts`, with persistence and the clock injected), `timer/` (`timer.ts`, `timer-driver.ts`) and `panel/` (`panel-model.ts`, `clock-face.ts`, `panel.ts`, `panel-controller.ts`), `block/` (`block-model.ts`, `block-controller.ts`) and `status-bar/` (`status-bar-model.ts`, `status-bar-controller.ts`).
+- **Pure modules** need no Obsidian fakes: `counting/` (`count.ts`, `region.ts`, `note-count.ts`, `summary.ts`), `settings/` (`settings.ts`, `store.ts`, with persistence and the clock injected), `timer/` (`timer.ts`, `timer-driver.ts`, `last-counts.ts`), `watcher/` (`note-watcher.ts`, whose Obsidian events are injected as fakes) and `panel/` (`panel-model.ts`, `clock-face.ts`, `panel.ts`, `panel-controller.ts`), `block/` (`block-model.ts`, `block-controller.ts`) and `status-bar/` (`status-bar-model.ts`, `status-bar-controller.ts`).
 - **DOM-facing modules** (`clock-face.ts`, `panel.ts`, `panel-controller.ts`, `block-controller.ts`) run under jsdom. `panel.ts` and `block-controller.ts` build elements with Obsidian's global `createEl`, which `obsidian-test-mocks` provides through its Vitest setup file.
-- **Obsidian-facing modules** are `obsidian/` (`note-source.ts`, `processor.ts`, `SettingsTab.ts`, `status-bar.ts`, `View.ts`, `WordCountBlock.ts`), `commands/`, `runtime.ts` and `main.ts`.
+- **Obsidian-facing modules** are `obsidian/` (`note-source.ts`, `processor.ts`, `SettingsTab.ts`, `status-bar.ts`, `View.ts`, `watcher-sources.ts`, `WordCountBlock.ts`), `commands/`, `runtime.ts` and `main.ts`.
 
 ## Vitest configuration
 
@@ -70,7 +70,7 @@ The Ratchet is in place as the philosophy defines it (Section 4). In this projec
 - CSS and visual output. The clock face's hand angles are computed by a pure function and are tested; how the SVG looks is not.
 - Trivial wrappers, for example a command registration that only calls a function.
 - The settings tab (`obsidian/SettingsTab.ts`), which only declares the settings and forwards reads and writes to the store. Its one piece of logic, routing every edit through `normalizeSettings`, now lives in `store.updateSettings` and is tested in `store.test.ts`.
-- `obsidian/View.ts`, `obsidian/WordCountBlock.ts`, `obsidian/processor.ts`, `obsidian/note-source.ts` and `commands/open-panel.ts`: thin shells over `ItemView`, `MarkdownRenderChild`, the vault and the command registry. Their logic lives in `panel-controller.ts`, `block-controller.ts`, `block-model.ts`, `note-count.ts` and `panel-model.ts`, which are tested.
+- `obsidian/View.ts`, `obsidian/WordCountBlock.ts`, `obsidian/processor.ts`, `obsidian/note-source.ts`, `obsidian/watcher-sources.ts` and `commands/open-panel.ts`: thin shells over `ItemView`, `MarkdownRenderChild`, the vault and the command registry. Their logic lives in `panel-controller.ts`, `block-controller.ts`, `block-model.ts`, `note-count.ts` and `panel-model.ts`, which are tested.
 - `main.ts` and `runtime.ts`. `main.ts` is lifecycle only and `runtime.ts` is wiring only (construct the store, register features); any logic that creeps into either belongs in a pure module with its own tests.
 
 ## Known gaps

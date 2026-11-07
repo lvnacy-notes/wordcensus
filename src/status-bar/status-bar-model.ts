@@ -3,7 +3,7 @@
  * Imports nothing from Obsidian.
  */
 
-import { buildSummary } from '../panel/panel-model';
+import { buildSummary } from '../counting/summary';
 import type { NoteCount, StatusBarContent } from '../types';
 
 /** The item's text and tooltip, or null when there is no note to show. */

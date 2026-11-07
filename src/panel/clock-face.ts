@@ -4,6 +4,7 @@
  * standard DOM APIs.
  */
 
+import { MINUTE_MS } from '../timer/timer';
 import type {
 	ClockFace,
 	ClockModel,
@@ -20,10 +21,9 @@ const HAND_LENGTHS = {
 	minute: 34,
 	second: 40
 };
-const HOUR_MS = 3_600_000;
-const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const TWELVE_HOURS_MS = 43_200_000;
+const TWELVE_HOURS_MS = 12 * HOUR_MS;
 const WEDGE_RADIUS = 44;
 
 /******************************************************************************
@@ -35,24 +35,32 @@ const WEDGE_RADIUS = 44;
  * resizes the wedge. The face scales to the width of its host.
  */
 export function createClockFace(host: HTMLElement): ClockFace {
-	const svg = svgElement('svg', {
+	const page = host.ownerDocument;
+	const svg = svgElement(page, 'svg', {
 		class: 'wordcensus-clock',
 		role: 'img',
 		viewBox: '0 0 100 100'
 	});
-	svg.appendChild(svgElement('circle', {
-		class: 'wordcensus-clock-face',
-		cx: String(CENTER),
-		cy: String(CENTER),
-		r: '48'
-	}));
-	const wedge = svg.appendChild(svgElement('path', { class: 'wordcensus-clock-wedge' }));
+	svg.appendChild(svgElement(
+		page,
+		'circle',
+		{
+			class: 'wordcensus-clock-face',
+			cx: String(CENTER),
+			cy: String(CENTER),
+			r: '48'
+		}));
+	const wedge = svg.appendChild(svgElement(
+		page,
+		'path',
+		{ class: 'wordcensus-clock-wedge' }
+	));
 	for (let tick = 0; tick < 12; tick += 1) {
-		svg.appendChild(tickMark(tick));
+		svg.appendChild(tickMark(page, tick));
 	}
-	const hour = svg.appendChild(handElement('hour'));
-	const minute = svg.appendChild(handElement('minute'));
-	const second = svg.appendChild(handElement('second'));
+	const hour = svg.appendChild(handElement(page, 'hour'));
+	const minute = svg.appendChild(handElement(page, 'minute'));
+	const second = svg.appendChild(handElement(page, 'second'));
 	host.appendChild(svg);
 
 	return {
@@ -80,8 +88,8 @@ export function handAngles(ms: number): HandAngles {
 	};
 }
 
-function handElement(name: 'hour' | 'minute' | 'second'): SVGElement {
-	return svgElement('line', {
+function handElement(page: Document, name: 'hour' | 'minute' | 'second'): SVGElement {
+	return svgElement(page, 'line', {
 		class: `wordcensus-clock-hand wordcensus-clock-hand-${ name }`,
 		x1: String(CENTER),
 		x2: String(CENTER),
@@ -98,16 +106,17 @@ function roundTo(value: number): number {
 	return Math.round(value * 1000) / 1000;
 }
 
-function svgElement(tag: string, attributes: Record<string, string>): SVGElement {
-	const element = document.createElementNS(SVG_NS, tag);
+/** Creates an SVG element in `page`, the document of the window that shows the clock. */
+function svgElement(page: Document, tag: string, attributes: Record<string, string>): SVGElement {
+	const element = page.createElementNS(SVG_NS, tag);
 	for (const [name, value] of Object.entries(attributes)) {
 		element.setAttribute(name, value);
 	}
 	return element;
 }
 
-function tickMark(index: number): SVGElement {
-	const mark = svgElement('line', {
+function tickMark(page: Document, index: number): SVGElement {
+	const mark = svgElement(page, 'line', {
 		class: 'wordcensus-clock-tick',
 		x1: String(CENTER),
 		x2: String(CENTER),

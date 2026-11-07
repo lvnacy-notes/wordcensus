@@ -9,10 +9,13 @@ import {
 	MIN_COUNTDOWN_MS,
 	createTimer,
 	elapsedMs,
+	endSession,
 	formatDuration,
 	freezeTimer,
 	isCountdownFinished,
+	isSessionEnded,
 	pauseTimer,
+	rebindSession,
 	remainingMs,
 	resetTimer,
 	restoreTimer,
@@ -285,7 +288,20 @@ describe('resetTimer', () => {
 
 		const result = resetTimer(running);
 
-		expect(result.session).toEqual({ accumulatedMs: 0, startedAt: null, binding: null });
+		expect(result.session).toEqual({ accumulatedMs: 0, startedAt: null, binding: null, result: null });
+	});
+
+	it('clears the result of a session that ended', () => {
+		const ended = endSession(
+			startTimer(selecting('session'), T0, NOTE),
+			NOTE.path,
+			T0 + MINUTE,
+			150
+		);
+
+		const result = resetTimer(ended);
+
+		expect(result.session).toEqual({ accumulatedMs: 0, startedAt: null, binding: null, result: null });
 	});
 
 	it('resets only the selected mode', () => {
@@ -377,12 +393,208 @@ describe('sessionStats', () => {
 		expect(result.wordsPerMinute).toBe(0);
 	});
 
+	it('reports no words or rate when the bound note\'s count is unavailable', () => {
+		const running = startTimer(selecting('session'), T0, NOTE);
+
+		const result = sessionStats(running, T0 + 2 * MINUTE, null);
+
+		expect(result).toEqual({ elapsedMs: 2 * MINUTE, wordsWritten: null, wordsPerMinute: null });
+	});
+
 	it('reports no words or rate for a session with no note', () => {
 		const running = startTimer(selecting('session'), T0);
 
 		const result = sessionStats(running, T0 + MINUTE, 500);
 
 		expect(result).toEqual({ elapsedMs: MINUTE, wordsWritten: null, wordsPerMinute: null });
+	});
+});
+
+/** A session bound to `path` and started at T0, with 100 words at the start. */
+function sessionBoundTo(path: string): TimerState {
+	return startTimer(selecting('session'), T0, { path, baselineWords: 100 });
+}
+
+describe('endSession', () => {
+	it('pauses and unbinds the session and keeps its figures', () => {
+		const running = sessionBoundTo('Draft.md');
+
+		const result = endSession(
+			running,
+			'Draft.md',
+			T0 + 2 * MINUTE,
+			160
+		);
+
+		expect(result.session).toEqual({
+			accumulatedMs: 2 * MINUTE,
+			startedAt: null,
+			binding: null,
+			result: { path: 'Draft.md', wordsPerMinute: 30, wordsWritten: 60 }
+		});
+	});
+
+	it('keeps no word figures when the last count is unknown', () => {
+		const running = sessionBoundTo('Draft.md');
+
+		const result = endSession(
+			running,
+			'Draft.md',
+			T0 + 2 * MINUTE,
+			null
+		);
+
+		expect(result.session.result).toEqual({
+			path: 'Draft.md',
+			wordsPerMinute: null,
+			wordsWritten: null
+		});
+		expect(result.session.accumulatedMs).toBe(2 * MINUTE);
+	});
+
+	it('keeps the time of a session that was already paused', () => {
+		const paused = pauseTimer(sessionBoundTo('Draft.md'), T0 + 5 * SECOND);
+
+		const result = endSession(
+			paused,
+			'Draft.md',
+			T0 + 10 * SECOND,
+			110
+		);
+
+		expect(result.session.accumulatedMs).toBe(5 * SECOND);
+	});
+
+	it('ends a session whose note was inside the deleted folder', () => {
+		const running = sessionBoundTo('Drafts/Draft.md');
+
+		const result = endSession(
+			running,
+			'Drafts',
+			T0 + MINUTE,
+			130
+		);
+
+		expect(result.session.result?.path).toBe('Drafts/Draft.md');
+		expect(isSessionEnded(result.session)).toBe(true);
+	});
+
+	it('leaves a session bound to another note alone', () => {
+		const running = sessionBoundTo('Draft.md');
+
+		const result = endSession(
+			running,
+			'Other.md',
+			T0 + MINUTE,
+			130
+		);
+
+		expect(result).toBe(running);
+	});
+
+	it('does not mistake a folder with a similar name for the deleted one', () => {
+		const running = sessionBoundTo('Drafts2/Draft.md');
+
+		const result = endSession(
+			running,
+			'Drafts',
+			T0 + MINUTE,
+			130
+		);
+
+		expect(result).toBe(running);
+	});
+
+	it('leaves an unbound session alone', () => {
+		const unbound = startTimer(selecting('session'), T0);
+
+		const result = endSession(
+			unbound,
+			'Draft.md',
+			T0 + MINUTE,
+			130
+		);
+
+		expect(result).toBe(unbound);
+	});
+
+	it('leaves the other modes running', () => {
+		const withStopwatch: TimerState = {
+			...sessionBoundTo('Draft.md'),
+			stopwatch: { accumulatedMs: 0, startedAt: T0 }
+		};
+
+		const result = endSession(
+			withStopwatch,
+			'Draft.md',
+			T0 + MINUTE,
+			130
+		);
+
+		expect(result.stopwatch).toEqual({ accumulatedMs: 0, startedAt: T0 });
+	});
+
+	it('is not undone by starting the session again until it is reset', () => {
+		const ended = endSession(
+			sessionBoundTo('Draft.md'),
+			'Draft.md',
+			T0 + MINUTE,
+			130
+		);
+
+		const result = startTimer(ended, T0 + 5 * MINUTE, NOTE);
+
+		expect(result).toBe(ended);
+	});
+});
+
+describe('rebindSession', () => {
+	it('follows a renamed note and keeps its baseline', () => {
+		const running = sessionBoundTo('Draft.md');
+
+		const result = rebindSession(running, 'Draft.md', 'Novel.md');
+
+		expect(result.session.binding).toEqual({ path: 'Novel.md', baselineWords: 100 });
+	});
+
+	it('follows a renamed folder', () => {
+		const running = sessionBoundTo('Drafts/Draft.md');
+
+		const result = rebindSession(running, 'Drafts', 'Novel');
+
+		expect(result.session.binding?.path).toBe('Novel/Draft.md');
+	});
+
+	it('keeps the session running', () => {
+		const running = sessionBoundTo('Draft.md');
+
+		const result = rebindSession(running, 'Draft.md', 'Novel.md');
+
+		expect(result.session.startedAt).toBe(T0);
+	});
+
+	it('leaves a session bound to another note alone', () => {
+		const running = sessionBoundTo('Draft.md');
+
+		const result = rebindSession(running, 'Other.md', 'Novel.md');
+
+		expect(result).toBe(running);
+	});
+
+	it('does not mistake a folder with a similar name for the renamed one', () => {
+		const running = sessionBoundTo('Drafts2/Draft.md');
+
+		const result = rebindSession(running, 'Drafts', 'Novel');
+
+		expect(result).toBe(running);
+	});
+
+	it('leaves an unbound session alone', () => {
+		const unbound = startTimer(selecting('session'), T0);
+
+		const result = rebindSession(unbound, 'Draft.md', 'Novel.md');
+
+		expect(result).toBe(unbound);
 	});
 });
 
@@ -394,7 +606,12 @@ describe('freezeTimer', () => {
 		const result = freezeTimer(bothRunning, T0 + 5 * SECOND);
 
 		expect(result.stopwatch).toEqual({ accumulatedMs: 5 * SECOND, startedAt: null });
-		expect(result.session).toEqual({ accumulatedMs: 4 * SECOND, startedAt: null, binding: NOTE });
+		expect(result.session).toEqual({
+			accumulatedMs: 4 * SECOND,
+			startedAt: null,
+			binding: NOTE,
+			result: null
+		});
 		expect(result.mode).toBe('session');
 	});
 
@@ -510,6 +727,55 @@ describe('restoreTimer', () => {
 		const result = restoreTimer(data);
 
 		expect(result.session.binding).toBe(null);
+	});
+
+	it('restores the result of a session that ended', () => {
+		const stored = { path: 'Draft.md', wordsPerMinute: 30, wordsWritten: 60 };
+		const data = { session: { accumulatedMs: 2 * MINUTE, result: stored } };
+
+		const result = restoreTimer(data);
+
+		expect(result.session).toEqual({
+			accumulatedMs: 2 * MINUTE,
+			startedAt: null,
+			binding: null,
+			result: stored
+		});
+	});
+
+	it('lets a stored result win over a stored binding', () => {
+		const data = {
+			session: {
+				binding: NOTE,
+				result: { path: 'Draft.md', wordsPerMinute: 30, wordsWritten: 60 }
+			}
+		};
+
+		const result = restoreTimer(data);
+
+		expect(result.session.binding).toBe(null);
+	});
+
+	it('drops a result with no usable path', () => {
+		const data = { session: { result: { path: '', wordsPerMinute: 30, wordsWritten: 60 } } };
+
+		const result = restoreTimer(data);
+
+		expect(result.session.result).toBe(null);
+	});
+
+	it('keeps an ended session whose figures are unusable, without those figures', () => {
+		const data = {
+			session: { result: { path: 'Draft.md', wordsPerMinute: -4, wordsWritten: Number.POSITIVE_INFINITY } }
+		};
+
+		const result = restoreTimer(data);
+
+		expect(result.session.result).toEqual({
+			path: 'Draft.md',
+			wordsPerMinute: null,
+			wordsWritten: null
+		});
 	});
 
 	it('drops unknown fields left over from an older version', () => {

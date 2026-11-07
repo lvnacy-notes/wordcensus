@@ -4,8 +4,10 @@ import {
 	it
 } from 'vitest';
 import { buildPanelModel } from './panel-model';
+import { buildSummary } from '../counting/summary';
 import {
 	createTimer,
+	endSession,
 	setCountdownDuration,
 	startTimer,
 	tickTimer
@@ -52,47 +54,18 @@ function buildInput(mode: TimerMode, overrides: Partial<PanelInput> = {}): Panel
 
 describe('buildPanelModel', () => {
 	describe('summary', () => {
-		it('says so when no note is open', () => {
-			const model = buildPanelModel(buildInput('stopwatch', { active: null }));
-
-			expect(model.summary).toEqual({ detail: '', headline: 'No note open' });
-		});
-
-		it('names the whole note, singular for one word', () => {
-			const active = buildNote({ words: 1 });
-
-			const model = buildPanelModel(buildInput('stopwatch', { active }));
-
-			expect(model.summary).toEqual({ detail: 'Whole note', headline: '1 word' });
-		});
-
-		it('counts the marker regions', () => {
+		it('summarizes the active note', () => {
 			const active = buildNote({ mode: 'sentinel', pairs: 2, words: 40 });
 
 			const model = buildPanelModel(buildInput('stopwatch', { active }));
 
-			expect(model.summary).toEqual({ detail: 'Between markers (2 regions)', headline: '40 words' });
+			expect(model.summary).toEqual(buildSummary(active.count));
 		});
 
-		it('names the heading', () => {
-			const active = buildNote({ heading: 'Draft', mode: 'heading', words: 9 });
+		it('summarizes no note when none is open', () => {
+			const model = buildPanelModel(buildInput('stopwatch', { active: null }));
 
-			const model = buildPanelModel(buildInput('stopwatch', { active }));
-
-			expect(model.summary).toEqual({ detail: 'Under “Draft”', headline: '9 words' });
-		});
-
-		it('says a missing heading is missing', () => {
-			const active = buildNote({
-				heading: 'Draft',
-				headingFound: false,
-				mode: 'heading',
-				words: 0
-			});
-
-			const model = buildPanelModel(buildInput('stopwatch', { active }));
-
-			expect(model.summary.headline).toBe('Heading not found');
+			expect(model.summary).toEqual(buildSummary(null));
 		});
 	});
 
@@ -196,6 +169,77 @@ describe('buildPanelModel', () => {
 				'—',
 				'—',
 				'Not bound'
+			]);
+		});
+
+		it('shows the saved figures of a session that ended when its note was deleted', () => {
+			const running = startTimer(
+				{ ...createTimer(), mode: 'session' },
+				T0,
+				{ baselineWords: 100, path: 'drafts/novel.md' }
+			);
+			const timer = endSession(
+				running,
+				'drafts/novel.md',
+				T0 + 2 * MINUTE,
+				160
+			);
+
+			const model = buildPanelModel(buildInput('session', {
+				bound: null,
+				now: T0 + 10 * MINUTE,
+				timer
+			}));
+
+			expect(model.rows).toEqual([
+				{ label: 'Elapsed', value: '2:00' },
+				{ label: 'Words written', value: '+60' },
+				{ label: 'Words per minute', value: '30' },
+				{ label: 'Region words', value: '120' },
+				{ label: 'Note', value: 'novel (deleted)' }
+			]);
+			expect(model.clock).toEqual({ ms: 2 * MINUTE, wedge: null });
+			expect(model.running).toBe(false);
+		});
+
+		it('keeps Start disabled for an ended session until it is reset', () => {
+			const running = startTimer(
+				{ ...createTimer(), mode: 'session' },
+				T0,
+				{ baselineWords: 100, path: 'novel.md' }
+			);
+			const timer = endSession(
+				running,
+				'novel.md',
+				T0 + MINUTE,
+				null
+			);
+
+			const model = buildPanelModel(buildInput('session', { bound: null, timer }));
+
+			expect(model.startDisabled).toBe(true);
+			expect(model.rows[1]).toEqual({ label: 'Words written', value: '—' });
+		});
+
+		it('shows no statistics, not a huge loss, while the bound note can\'t be read', () => {
+			const timer = startTimer(
+				{ ...createTimer(), mode: 'session' },
+				T0,
+				{ baselineWords: 5000, path: 'drafts/novel.md' }
+			);
+
+			const model = buildPanelModel(buildInput('session', {
+				bound: null,
+				now: T0 + 2 * MINUTE,
+				timer
+			}));
+
+			expect(model.rows).toEqual([
+				{ label: 'Elapsed', value: '2:00' },
+				{ label: 'Words written', value: '—' },
+				{ label: 'Words per minute', value: '—' },
+				{ label: 'Region words', value: '120' },
+				{ label: 'Note', value: 'novel' }
 			]);
 		});
 

@@ -15,6 +15,12 @@
  */
 
 import {
+	FENCE_OPEN,
+	FRONTMATTER,
+	HTML_COMMENT,
+	OBSIDIAN_COMMENT
+} from './markdown-patterns';
+import {
 	HeadingRegion,
 	RegionConfig,
 	RegionResult
@@ -38,12 +44,8 @@ interface HeadingLine {
  * Declared Variables and Constants
 ******************************************************************************/
 
-// Frontmatter, fences, inline code and comments.
-const FRONTMATTER = /^---[ \t]*\n(?:[\s\S]*?\n)?(?:---|\.\.\.)[ \t]*(?:\n|$)/;
-const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})(.*)$/;
+// An inline code span: a run of backticks closed by an equal run.
 const INLINE_CODE = /(`+)[^`\n]+\1/g;
-const HTML_COMMENT = /<!--[\s\S]*?(?:-->|$)/g;
-const OBSIDIAN_COMMENT = /%%[\s\S]*?(?:%%|$)/g;
 
 const SENTINEL = /<!--\s*word\s+count\s+(start|end)\s*-->/gi;
 // Up to three spaces of indent; four or more is an indented code block.

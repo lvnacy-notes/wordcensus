@@ -40,8 +40,12 @@ Word Census is an Obsidian plugin that counts words only inside a defined region
 | 19 | Declarative settings API | The settings tab implements `getSettingDefinitions` and has no `display()`. This sets `minAppVersion` to 1.13.0. Values route through the store via `getControlValue` and `setControlValue`, keeping normalization in one place |
 | 20 | Where types live | Exported types and interfaces live in `src/types.ts`, and test-only ones in `src/test/test-types.ts`, so each can be found in one place. A module keeps only the types it does not export |
 | 21 | Panel structure | The panel is split so its logic is testable without Obsidian: `panel-model.ts` (what to show), `panel.ts` (DOM), `panel-controller.ts` (subscriptions and actions). `View.ts` and `note-source.ts` are the thin Obsidian-facing layer |
-| 22 | Layout and naming | Source is grouped by purpose under `src/` (`counting/`, `obsidian/`, `panel/`, `settings/`, `timer/`, `commands/`). A file that exports a class is named for the class in PascalCase (`SettingsTab.ts`, `View.ts`); every other file is kebab-case |
+| 22 | Layout and naming | Source is grouped by purpose under `src/` (`counting/`, `obsidian/`, `panel/`, `settings/`, `timer/`, `watcher/`, `commands/`). A file that exports a class is named for the class in PascalCase (`SettingsTab.ts`, `View.ts`); every other file is kebab-case |
 | 23 | Saving a running timer | Besides every user action, the timer is saved when the app goes to the background, so time a running timer has accumulated since the last action survives the app being closed |
+| 24 | Shared helpers | Each helper has one definition. The frontmatter, fence and comment patterns that the counter and the region extractor both use live in `counting/markdown-patterns.ts`; `isRecord` lives in `guards.ts`; `buildSummary`, which the panel, the inline block and the status bar all use, lives in `counting/summary.ts`; and `MINUTE_MS` is exported from `timer.ts` |
+| 25 | One shared note watcher | The panel, the status bar and every `wordcount` block watch notes through one `NoteWatcher` (`watcher/note-watcher.ts`), so Obsidian is listened to once however many are open. The watcher listens only while something is subscribed, merges edits into one debounced notification, and also reports setting changes, so a counting setting refreshes the panel and blocks as well as the status bar. A watcher says which notes' property changes it cares about (the active note, listed paths, or all), so a change to a note nobody is showing wakes nobody. The pure watcher takes its events through `WatcherSources`; `obsidian/watcher-sources.ts` supplies the real ones |
+| 26 | A session follows its note | When the session's note, or a folder holding it, is moved or renamed, the session's binding follows it and its statistics carry on unbroken |
+| 27 | A deleted note ends its session | When the session's note, or a folder holding it, is deleted, the session is paused and unbound, and its final figures are saved with it (`session.result`): elapsed time stays on its clock, and words written and words per minute are the last count the panel or status bar saw, or none if it never saw one. The panel keeps showing these until the session is reset, and Start does nothing until then, as with a finished countdown. The user is told with a notice |
 
 ## 3. Region Modes
 
@@ -187,6 +191,9 @@ The panel updates live as the active note changes: debounced on `editor-change`,
 - **Countdown at zero:** it stops exactly on its duration and flags itself finished. A late check, such as the app returning from the background, still lands on the duration and never overshoots. A finished countdown ignores Start until it is reset. The store checks on every tick and on return to the foreground, and raises the notice when a countdown newly finishes.
 - **Countdown duration** is editable only while the countdown is not running. Changing it restarts the countdown from the new value. It is clamped to between 1 second and 24 hours, and the default is 25 minutes.
 - **Unbound session:** if no note is open when a session starts, it still times, but shows no word statistics. A session binds to its note on first start and keeps that note on resume.
+- **Bound note unavailable:** while the bound note's count can't be read (for instance, before it has loaded after a restart), words written and words per minute show "—" rather than measuring against zero words. Elapsed time keeps running, and the Note row shows the file name from the binding.
+- **Note moved or renamed:** the binding follows it, so the session's statistics carry on. A folder rename or move does the same for a note inside it.
+- **Note deleted:** the session ends: it is paused, unbound, and keeps its final figures, shown in the panel (the Note row reads "name (deleted)") until the session is reset. The words figures are the last count seen by the panel or status bar, so they are "—" if neither had shown that note. Start does nothing until reset. A running stopwatch or countdown is not affected.
 - **Saving and restoring:** what gets saved is a frozen copy in which everything running has been paused, with its time folded in. On restore every run comes back paused, any stored start time is discarded, and malformed or unknown saved data is replaced with safe defaults. Time the app spent closed is never counted. The timer is also saved when the app goes to the background, so a running timer's time since the last action is not lost if the app is then closed.
 - **Clock moves backwards:** a system clock change never makes a run shorter.
 - **Display:** `m:ss`, or `h:mm:ss` from one hour. Countdowns round up so `0:00` only appears once finished.
@@ -250,6 +257,7 @@ styles.css               panel, clock and inline-block styling
 manifest.json
 versions.json
 src/
+  guards.ts              pure: type guards shared across modules (`isRecord`)
   runtime.ts             the single wiring point: builds the store and driver, registers every feature with Obsidian
   types.ts               every exported type and interface
   block/
@@ -262,16 +270,20 @@ src/
   counting/
     count.ts             pure: region text + options -> word count
     count.test.ts
+    markdown-patterns.ts pure: the frontmatter, fence and comment patterns shared by count.ts and region.ts
     note-count.ts        pure: note text + settings (+ per-note heading) -> NoteCount
     note-count.test.ts
     region.ts            pure: text + config -> region text (sentinel/heading logic)
     region.test.ts
+    summary.ts           pure: note count -> the headline and detail line the panel, blocks and status bar show
+    summary.test.ts
   obsidian/              the Obsidian-facing layer; no logic worth a unit test lives here
-    note-source.ts       reads notes from the vault and watches for changes
+    note-source.ts       reads notes from the vault
     processor.ts         builds the `wordcount` code-block callback
     SettingsTab.ts       the settings tab (declarative API), class file
     status-bar.ts        adds the status bar item and builds its controller
     View.ts              the sidebar ItemView, a shell around the panel controller, class file
+    watcher-sources.ts   the real Obsidian events behind the shared note watcher
     WordCountBlock.ts    the MarkdownRenderChild for one block, a shell around the block controller, class file
   panel/
     clock-face.ts        hand angles and wedge path (pure), SVG clock face
@@ -293,10 +305,15 @@ src/
     status-bar-model.ts       pure: count -> item text and tooltip
     status-bar-model.test.ts
   timer/
+    last-counts.ts       pure: remembers the session's note's last count, for when the note is deleted
+    last-counts.test.ts
     timer.ts             pure: timer state machine with injectable clock
     timer.test.ts
     timer-driver.ts      ticks the timer in real time (injected scheduler, clock, foreground and background hooks, notices)
     timer-driver.test.ts
+  watcher/
+    note-watcher.ts      pure: one shared watcher; listens through injected sources, filters by path, merges edits
+    note-watcher.test.ts
   test/
     fakes.ts             buildSettings(), the malformed-settings fixture, fakePersistence(), fakeEnvironment()
     region-count.test.ts region extraction feeding the counter (integration tests sit directly in test/)
@@ -311,7 +328,7 @@ docs/
   check-coverage-ratchet.js
 ```
 
-`count.ts`, `region.ts`, `timer.ts`, `store.ts`, `panel-model.ts`, `note-count.ts` and `block-model.ts` are plain functions with no `obsidian` imports, so the tricky parts (heading boundaries, unterminated sentinels, comment stripping, timer transitions) are unit-testable.
+`count.ts`, `region.ts`, `summary.ts`, `timer.ts`, `store.ts`, `panel-model.ts`, `note-count.ts` and `block-model.ts` are plain functions with no `obsidian` imports, so the tricky parts (heading boundaries, unterminated sentinels, comment stripping, timer transitions) are unit-testable.
 
 **Module layout.** The rules are in [Code Style Guide](<Code Style Guide.md>). In short:
 

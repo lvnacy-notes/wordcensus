@@ -106,7 +106,9 @@ export function createPanel(host: HTMLElement, actions: PanelActions): Panel {
 
 			durationLabel.hidden = model.durationMinutes === null;
 			durationInput.disabled = !model.durationEditable;
-			if (model.durationMinutes !== null && document.activeElement !== durationInput) {
+			// Compared in the input's own document, which is a popout window's when the panel is popped out.
+			const typing = durationInput.ownerDocument.activeElement === durationInput;
+			if (model.durationMinutes !== null && !typing) {
 				durationInput.value = String(model.durationMinutes);
 			}
 

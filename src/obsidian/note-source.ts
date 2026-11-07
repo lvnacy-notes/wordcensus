@@ -1,14 +1,10 @@
 /**
- * Reads notes from the vault and watches for changes that affect their
- * counts. The only module that reaches into Obsidian's workspace, vault
- * and metadata cache for the sidebar panel.
+ * Reads notes from the vault. The only module that reaches into Obsidian's
+ * workspace, vault and metadata cache to read a note's text and properties;
+ * watching for changes is `watcher-sources.ts`.
  */
 
-import {
-	MarkdownView,
-	TFile,
-	debounce
-} from 'obsidian';
+import { MarkdownView, TFile } from 'obsidian';
 import type { App } from 'obsidian';
 import { countNote } from '../counting/note-count';
 import type {
@@ -21,7 +17,6 @@ import type {
  * Declared Variables and Constants
 ******************************************************************************/
 
-const EDIT_DEBOUNCE_MS = 500;
 const HEADING_PROPERTY = 'word-count-heading';
 
 /******************************************************************************
@@ -86,31 +81,4 @@ async function readText(app: App, file: TFile): Promise<string> {
 		}
 	}
 	return await app.vault.cachedRead(file);
-}
-
-/**
- * Calls `handler` when the active note changes, when its properties change
- * and, debounced, while it is being edited. Returns a function that stops
- * watching.
- */
-export function watchNotes(app: App, handler: () => void): () => void {
-	const debounced = debounce(
-		handler,
-		EDIT_DEBOUNCE_MS,
-		true
-	);
-	const workspaceRefs = [
-		app.workspace.on('active-leaf-change', handler),
-		app.workspace.on('file-open', handler),
-		app.workspace.on('editor-change', debounced)
-	];
-	const metadataRef = app.metadataCache.on('changed', handler);
-
-	return () => {
-		for (const ref of workspaceRefs) {
-			app.workspace.offref(ref);
-		}
-		app.metadataCache.offref(metadataRef);
-		debounced.cancel();
-	};
 }

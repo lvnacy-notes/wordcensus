@@ -4,8 +4,8 @@
  * it needs from Obsidian arrives through `BlockControllerDeps`.
  */
 
-import { buildSummary } from '../panel/panel-model';
 import { countBlock } from './block-model';
+import { buildSummary } from '../counting/summary';
 import type { BlockController, BlockControllerDeps } from '../types';
 
 /******************************************************************************

@@ -10,7 +10,7 @@ import type { StatusBarController, StatusBarControllerDeps } from '../types';
 /** Creates a controller that is stopped until `start` is called. */
 export function createStatusBarController(deps: StatusBarControllerDeps): StatusBarController {
 	let generation = 0;
-	let releases: (() => void)[] = [];
+	let release: (() => void) | null = null;
 
 	const refresh = async (): Promise<void> => {
 		const token = generation;
@@ -38,20 +38,16 @@ export function createStatusBarController(deps: StatusBarControllerDeps): Status
 
 	const stop = (): void => {
 		generation += 1;
-		for (const release of releases) {
-			release();
-		}
-		releases = [];
+		release?.();
+		release = null;
 		deps.display.hide();
 	};
 
 	return {
 		start(): void {
 			stop();
-			releases = [
-				deps.watchNotes(refreshQuietly),
-				deps.store.subscribe(refreshQuietly)
-			];
+			// The watcher also reports setting changes, which can show or hide the item.
+			release = deps.watchNotes(refreshQuietly);
 			refreshQuietly();
 		},
 		stop

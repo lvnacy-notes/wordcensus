@@ -41,7 +41,18 @@ function buildModel(overrides: Partial<PanelModel> = {}): PanelModel {
 	};
 }
 
-function render(): Rendered {
+/** The document of a new frame, standing in for the document of a popout window. */
+function openWindow(): Document {
+	const frame = createEl('iframe');
+	document.body.appendChild(frame);
+	hosts.push(frame);
+	if (frame.contentDocument === null) {
+		throw new Error('missing frame document');
+	}
+	return frame.contentDocument;
+}
+
+function render(page: Document = document): Rendered {
 	const calls: Calls = {
 		durations: [],
 		modes: [],
@@ -63,7 +74,7 @@ function render(): Rendered {
 		}
 	};
 	const host = createDiv();
-	document.body.appendChild(host);
+	page.body.appendChild(host);
 	hosts.push(host);
 	return {
 		calls,
@@ -194,6 +205,23 @@ describe('createPanel', () => {
 
 		it('does not overwrite what the user is typing', () => {
 			const { host, panel } = render();
+			const model = buildModel({
+				durationEditable: true,
+				durationMinutes: 25,
+				mode: 'countdown'
+			});
+			panel.update(model);
+			const input = find<HTMLInputElement>(host, '.wordcensus-duration-input');
+			input.focus();
+			input.value = '3';
+
+			panel.update(model);
+
+			expect(input.value).toBe('3');
+		});
+
+		it('does not overwrite what the user is typing in another window', () => {
+			const { host, panel } = render(openWindow());
 			const model = buildModel({
 				durationEditable: true,
 				durationMinutes: 25,

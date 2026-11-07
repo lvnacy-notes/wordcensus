@@ -8,6 +8,7 @@
 import { createPanel } from '../panel/panel';
 import { buildPanelModel } from '../panel/panel-model';
 import {
+	MINUTE_MS,
 	isRunning,
 	selectedRun
 } from '../timer/timer';
@@ -17,12 +18,6 @@ import type {
 	PanelController,
 	PanelControllerDeps
 } from '../types';
-
-/******************************************************************************
- * Declared Variables and Constants
-******************************************************************************/
-
-const MINUTE_MS = 60_000;
 
 /******************************************************************************
  * Functions

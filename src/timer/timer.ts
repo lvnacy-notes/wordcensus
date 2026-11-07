@@ -17,10 +17,12 @@
  * changes.
  */
 
+import { isRecord } from '../guards';
 import type {
 	CountdownRun,
 	Run,
 	SessionBinding,
+	SessionResult,
 	SessionRun,
 	SessionStats,
 	TimerMode,
@@ -31,8 +33,9 @@ import type {
  * Declared Variables and Constants
 ******************************************************************************/
 
-export const DEFAULT_COUNTDOWN_MS = 25 * 60 * 1000;
-export const MAX_COUNTDOWN_MS = 24 * 60 * 60 * 1000;
+export const MINUTE_MS = 60_000;
+export const DEFAULT_COUNTDOWN_MS = 25 * MINUTE_MS;
+export const MAX_COUNTDOWN_MS = 24 * 60 * MINUTE_MS;
 export const MIN_COUNTDOWN_MS = 1000;
 export const TIMER_MODES: readonly TimerMode[] = ['stopwatch', 'countdown', 'session'];
 
@@ -49,7 +52,7 @@ export function createTimer(): TimerState {
 		mode: 'stopwatch',
 		stopwatch: { accumulatedMs: 0, startedAt: null },
 		countdown: { accumulatedMs: 0, startedAt: null, durationMs: DEFAULT_COUNTDOWN_MS },
-		session: { accumulatedMs: 0, startedAt: null, binding: null }
+		session: { accumulatedMs: 0, startedAt: null, binding: null, result: null }
 	};
 }
 
@@ -63,6 +66,46 @@ export function elapsedMs(run: Run, now: number): number {
 		return accumulatedMs;
 	}
 	return accumulatedMs + Math.max(0, now - startedAt);
+}
+
+/**
+ * Ends the session because its note was deleted. `path` is the note or the
+ * folder that was deleted; a session bound to anything else is left alone.
+ *
+ * The session is paused, unbound, and keeps its figures as they stood:
+ * elapsed time stays on its clock, and `result` records the words written
+ * and the rate. `currentWords` is the note's last known count, or null if
+ * there is none, in which case those two are null. Like a finished
+ * countdown, an ended session ignores Start until it is reset.
+ */
+export function endSession(
+	state: TimerState,
+	path: string,
+	now: number,
+	currentWords: number | null
+): TimerState {
+	const { binding } = state.session;
+	if (binding === null || !isWithin(binding.path, path)) {
+		return state;
+	}
+	const stats = sessionStats(
+		state,
+		now,
+		currentWords
+	);
+	return {
+		...state,
+		session: {
+			accumulatedMs: stats.elapsedMs,
+			startedAt: null,
+			binding: null,
+			result: {
+				path: binding.path,
+				wordsPerMinute: stats.wordsPerMinute,
+				wordsWritten: stats.wordsWritten
+			}
+		}
+	};
 }
 
 /**
@@ -110,12 +153,18 @@ export function isCountdownFinished(countdown: CountdownRun): boolean {
 	return countdown.startedAt === null && countdown.accumulatedMs >= countdown.durationMs;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 export function isRunning(run: Run): boolean {
 	return run.startedAt !== null;
+}
+
+/** True once a session has ended because its note was deleted, until it is reset. */
+export function isSessionEnded(session: SessionRun): boolean {
+	return session.result !== null;
+}
+
+/** True when `path` is `parent` itself or is inside that folder. */
+function isWithin(path: string, parent: string): boolean {
+	return path === parent || path.startsWith(`${ parent }/`);
 }
 
 /** Clamps to the allowed range, or returns null for anything that is not a finite number. */
@@ -147,8 +196,27 @@ export function remainingMs(countdown: CountdownRun, now: number): number {
 }
 
 /**
+ * Follows the session's note when `oldPath`, a note or a folder, is moved
+ * or renamed to `newPath`. A session bound to anything else is left alone.
+ * The same object comes back when nothing changes.
+ */
+export function rebindSession(state: TimerState, oldPath: string, newPath: string): TimerState {
+	const { binding } = state.session;
+	if (binding === null || !isWithin(binding.path, oldPath)) {
+		return state;
+	}
+	return {
+		...state,
+		session: {
+			...state.session,
+			binding: { ...binding, path: newPath + binding.path.slice(oldPath.length) }
+		}
+	};
+}
+
+/**
  * Clears the selected mode back to idle. A countdown keeps its duration;
- * a session forgets its note.
+ * a session forgets its note and any result.
  */
 export function resetTimer(state: TimerState): TimerState {
 	switch (state.mode) {
@@ -157,7 +225,7 @@ export function resetTimer(state: TimerState): TimerState {
 		case 'countdown':
 			return { ...state, countdown: { ...state.countdown, accumulatedMs: 0, startedAt: null } };
 		case 'session':
-			return { ...state, session: { accumulatedMs: 0, startedAt: null, binding: null } };
+			return { ...state, session: { accumulatedMs: 0, startedAt: null, binding: null, result: null } };
 	}
 }
 
@@ -178,6 +246,27 @@ function restoreCountdown(value: unknown): CountdownRun {
 	return { ...run, accumulatedMs: Math.min(run.accumulatedMs, durationMs), durationMs };
 }
 
+function restoreResult(value: unknown): SessionResult | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+	const {
+		path,
+		wordsPerMinute,
+		wordsWritten
+	} = value;
+	if (typeof path !== 'string' || path === '') {
+		return null;
+	}
+	const validRate = typeof wordsPerMinute === 'number' && Number.isFinite(wordsPerMinute) && wordsPerMinute >= 0;
+	const validWords = typeof wordsWritten === 'number' && Number.isFinite(wordsWritten);
+	return {
+		path,
+		wordsPerMinute: validRate ? wordsPerMinute : null,
+		wordsWritten: validWords ? wordsWritten : null
+	};
+}
+
 /** A run always comes back paused, whatever was stored. */
 function restoreRun(value: unknown): Run {
 	const stored = isRecord(value) ? value.accumulatedMs : undefined;
@@ -187,7 +276,13 @@ function restoreRun(value: unknown): Run {
 
 function restoreSession(value: unknown): SessionRun {
 	const stored = isRecord(value) ? value : {};
-	return { ...restoreRun(stored), binding: restoreBinding(stored.binding) };
+	// An ended session has no note, so a stored result wins over a stored binding.
+	const result = restoreResult(stored.result);
+	return {
+		...restoreRun(stored),
+		binding: result === null ? restoreBinding(stored.binding) : null,
+		result
+	};
 }
 
 /**
@@ -224,16 +319,23 @@ export function selectedRun(state: TimerState): Run {
  *
  * The rate uses running time only, so time spent paused never lowers it.
  * It is never negative, even when more text was removed than written.
- * `currentWords` is the bound note's region count right now.
+ * `currentWords` is the bound note's region count right now, or null when
+ * that count isn't available (the note hasn't been read yet, or was moved or
+ * deleted). Without it there is nothing to measure against the baseline, so
+ * the session reports no words or rate, as an unbound session does.
  */
-export function sessionStats(state: TimerState, now: number, currentWords: number): SessionStats {
+export function sessionStats(
+	state: TimerState,
+	now: number,
+	currentWords: number | null
+): SessionStats {
 	const { session } = state;
 	const elapsed = elapsedMs(session, now);
-	if (session.binding === null) {
+	if (session.binding === null || currentWords === null) {
 		return { elapsedMs: elapsed, wordsWritten: null, wordsPerMinute: null };
 	}
 	const wordsWritten = currentWords - session.binding.baselineWords;
-	const minutes = elapsed / 60000;
+	const minutes = elapsed / MINUTE_MS;
 	const wordsPerMinute = minutes > 0 ? Math.max(0, wordsWritten) / minutes : 0;
 	return { elapsedMs: elapsed, wordsWritten, wordsPerMinute };
 }
@@ -256,7 +358,8 @@ export function setCountdownDuration(state: TimerState, durationMs: number): Tim
  * Starts or resumes the selected mode.
  *
  * - Already running: unchanged.
- * - A finished countdown does nothing until it is reset.
+ * - A finished countdown does nothing until it is reset, and neither does a
+ *   session that ended because its note was deleted.
  * - A session binds to `binding` the first time it starts. Once bound it
  *   keeps that note, whatever is passed on resume. With no binding at all
  *   it runs unbound and reports no word statistics.
@@ -273,13 +376,15 @@ export function startTimer(state: TimerState, now: number, binding?: SessionBind
 				? state
 				: { ...state, countdown: begin(state.countdown, now) };
 		case 'session':
-			return {
-				...state,
-				session: {
-					...begin(state.session, now),
-					binding: state.session.binding ?? binding ?? null
-				}
-			};
+			return isSessionEnded(state.session)
+				? state
+				: {
+					...state,
+					session: {
+						...begin(state.session, now),
+						binding: state.session.binding ?? binding ?? null
+					}
+				};
 	}
 }
 

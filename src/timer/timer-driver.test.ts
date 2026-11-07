@@ -155,6 +155,88 @@ describe('createTimerDriver', () => {
 		});
 	});
 
+	describe('a note being moved or deleted', () => {
+		const NOTE = { baselineWords: 100, path: 'Drafts/Draft.md' };
+
+		it('follows the session\'s note when its folder is renamed, and saves', async () => {
+			const {
+				driver,
+				saved,
+				store
+			} = await buildHarness({ keepTimerState: true });
+			driver.selectMode('session');
+			driver.start(NOTE);
+			const savesBefore = saved.length;
+
+			driver.rebind('Drafts', 'Novel');
+
+			expect(store.timer.session.binding).toEqual({ baselineWords: 100, path: 'Novel/Draft.md' });
+			expect(saved.length).toBe(savesBefore + 1);
+		});
+
+		it('does nothing, and saves nothing, when another note is moved', async () => {
+			const {
+				driver,
+				saved
+			} = await buildHarness({ keepTimerState: true });
+			driver.selectMode('session');
+			driver.start(NOTE);
+			const savesBefore = saved.length;
+
+			driver.rebind('Other.md', 'Moved.md');
+
+			expect(saved.length).toBe(savesBefore);
+		});
+
+		it('ends the session when its note is deleted: paused, unbound, figures kept, user told', async () => {
+			const {
+				driver,
+				environment,
+				store
+			} = await buildHarness();
+			driver.selectMode('session');
+			driver.start(NOTE);
+			environment.time += 2 * ONE_MINUTE;
+
+			driver.endSession('Drafts/Draft.md', 160);
+
+			expect(store.timer.session).toEqual({
+				accumulatedMs: 2 * ONE_MINUTE,
+				binding: null,
+				result: { path: 'Drafts/Draft.md', wordsPerMinute: 30, wordsWritten: 60 },
+				startedAt: null
+			});
+			expect(environment.notices).toEqual([
+				'Word Census: the session\'s note was deleted, so the session has ended.'
+			]);
+			expect(environment.cancelled).toBe(1);
+		});
+
+		it('tells subscribers when the session ends', async () => {
+			const { driver } = await buildHarness();
+			driver.selectMode('session');
+			driver.start(NOTE);
+			let calls = 0;
+			driver.subscribe(() => {
+				calls += 1;
+			});
+
+			driver.endSession('Drafts', null);
+
+			expect(calls).toBe(1);
+		});
+
+		it('says nothing when the deleted note is not the session\'s', async () => {
+			const { driver, environment } = await buildHarness();
+			driver.selectMode('session');
+			driver.start(NOTE);
+
+			driver.endSession('Other.md', 160);
+
+			expect(environment.notices).toEqual([]);
+		});
+	});
+
 	describe('end', () => {
 		it('stops ticking and drops subscribers', async () => {
 			const { driver, environment } = await buildHarness();

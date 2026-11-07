@@ -78,6 +78,22 @@ describe('createClockFace', () => {
 		expect(attribute(host, '.wordcensus-clock-hand-second', 'transform')).toBe('rotate(90 50 50)');
 	});
 
+	it('builds the face in the document of its host', () => {
+		const frame = createEl('iframe');
+		document.body.appendChild(frame);
+		hosts.push(frame);
+		const page = frame.contentDocument;
+		if (page === null) {
+			throw new Error('missing frame document');
+		}
+		const host = createDiv();
+		page.body.appendChild(host);
+
+		createClockFace(host);
+
+		expect(host.querySelector('svg')?.ownerDocument).toBe(page);
+	});
+
 	it('shows the wedge only when the model has one', () => {
 		const host = buildHost();
 		const face = createClockFace(host);

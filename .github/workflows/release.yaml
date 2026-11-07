@@ -1,0 +1,93 @@
+name: Release
+
+# Fires on the "Publish release" click in GitHub's web Release UI (or the
+# equivalent API/gh CLI call) - not on a git-tag push. Nothing here reads
+# or cares about the tag having been created via the UI vs. pushed from a
+# terminal; either way the tag exists and this event fires once the
+# Release itself is published.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write      # required to upload assets onto the release
+  id-token: write      # required to mint the OIDC token used for attestation
+  attestations: write  # required to publish the attestation
+
+jobs:
+  publish-release-assets:
+    name: Build and attach plugin files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        # No explicit `ref:` - a `release: published` event's default
+        # checkout ref already points at the tag the release was published
+        # against, so this lands on the exact commit that tag targets,
+        # whether that's the tip of `main` or an older commit someone
+        # deliberately re-targeted the release at.
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        # No `version:` input - reads the pinned version out of
+        # package.json's `packageManager` field, same as CI.
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify manifest.json version matches the release tag
+        # This project's release tags are typed by hand into GitHub's web
+        # Release form - nothing forces the tag to match whatever's
+        # actually in manifest.json at the targeted commit. A mismatch
+        # here means either the wrong commit got tagged or manifest.json
+        # never got bumped before tagging; either way, better to fail
+        # loudly here than publish plugin files under the wrong version
+        # number. (Obsidian also requires the tag to be the bare version,
+        # with no leading `v`.)
+        run: |
+          MANIFEST_VERSION=$(node -p "require('./manifest.json').version")
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          if [ "$MANIFEST_VERSION" != "$TAG_NAME" ]; then
+            echo "::error::manifest.json version ($MANIFEST_VERSION) does not match the release tag ($TAG_NAME)."
+            exit 1
+          fi
+
+      - name: Build
+        # No separate typecheck/lint/test step here by design: `main` is
+        # branch-protected (no direct pushes, even for maintainers), so
+        # every commit reachable by a release tag already passed the PR-
+        # gate CI workflow to get merged. Re-running that gate here would
+        # just re-check a commit that's already been checked. (`pnpm run
+        # build` does still run `tsc --noEmit` as its own build
+        # precondition - that's inherent to the existing build script,
+        # not a re-added verification step.)
+        run: pnpm run build
+
+      - name: Generate artifact attestation
+        # Signs build provenance for the three files we're about to
+        # publish - which repo, which workflow, which commit built them.
+        # Runs after Build (so the files exist) and before the upload
+        # step, so the attestation is in place before anything public
+        # points at these assets.
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: |
+            dist/main.js
+            dist/manifest.json
+            dist/styles.css
+
+      - name: Attach plugin files to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            dist/main.js \
+            dist/manifest.json \
+            dist/styles.css \
+            --clobber

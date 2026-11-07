@@ -8,8 +8,10 @@
  */
 
 import {
+	endSession,
 	isRunning,
 	pauseTimer,
+	rebindSession,
 	resetTimer,
 	setCountdownDuration,
 	startTimer,
@@ -30,6 +32,7 @@ import type {
 
 const COUNTDOWN_FINISHED_MESSAGE = 'Word Census: countdown finished.';
 const SAVE_FAILED_MESSAGE = 'Word Census: failed to save the timer.';
+const SESSION_ENDED_MESSAGE = 'Word Census: the session\'s note was deleted, so the session has ended.';
 const TICK_MS = 1000;
 
 /******************************************************************************
@@ -102,8 +105,24 @@ export function createTimerDriver(store: Store, environment: DriverEnvironment):
 			cancelTicking = null;
 			listeners.clear();
 		},
+		endSession(path: string, currentWords: number | null): void {
+			const before = store.timer;
+			const after = endSession(
+				before,
+				path,
+				environment.now(),
+				currentWords
+			);
+			if (after !== before) {
+				environment.notify(SESSION_ENDED_MESSAGE);
+			}
+			commit(after);
+		},
 		pause(): void {
 			commit(pauseTimer(store.timer, environment.now()));
+		},
+		rebind(oldPath: string, newPath: string): void {
+			commit(rebindSession(store.timer, oldPath, newPath));
 		},
 		reset(): void {
 			commit(resetTimer(store.timer));

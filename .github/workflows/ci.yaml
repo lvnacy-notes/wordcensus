@@ -1,0 +1,53 @@
+name: CI
+
+# PR-only, deliberately. `main` is branch-protected - nobody, including
+# maintainers, can push to it directly, so every change already goes
+# through a PR. Adding a `push` trigger on top would just re-run this
+# same gate a second time on the already-tested merge commit for no
+# additional signal.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-lint-test:
+    name: Build, lint, and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        # No `version:` input - this reads the pinned version straight out
+        # of package.json's own `packageManager` field, so there's exactly
+        # one place that number lives.
+
+      - name: Setup Node.js
+        # Runs after pnpm/action-setup, not before: `cache: 'pnpm'` below
+        # shells out to `pnpm store path` to find what to cache, so pnpm
+        # has to already be on PATH when this step runs.
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Test with coverage
+        run: pnpm run test:coverage
+
+      - name: Coverage Ratchet
+        run: node .coverage/check-coverage-ratchet.js
+
+      - name: Build
+        run: pnpm run build

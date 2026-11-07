@@ -14,6 +14,12 @@
  * fall back to one word per character.
  */
 
+import {
+	FENCE_OPEN,
+	FRONTMATTER,
+	HTML_COMMENT,
+	OBSIDIAN_COMMENT
+} from './markdown-patterns';
 import type { CountOptions, WordSegmenter } from '../types';
 
 /******************************************************************************
@@ -52,12 +58,7 @@ const NON_SPACED_SCRIPTS = [
 const NON_SPACED = new RegExp(`[${ NON_SPACED_SCRIPTS }]`, 'u');
 const NON_SPACED_SPLIT = new RegExp(`[${ NON_SPACED_SCRIPTS }]|[^${ NON_SPACED_SCRIPTS }]+`, 'gu');
 
-const FRONTMATTER = /^---[ \t]*\n(?:[\s\S]*?\n)?(?:---|\.\.\.)[ \t]*(?:\n|$)/;
-const FENCE_OPEN = /^[ \t]*(`{3,}|~{3,})(.*)$/;
-
-const HTML_COMMENT = /<!--[\s\S]*?(?:-->|$)/g;
-const OBSIDIAN_COMMENT = /%%[\s\S]*?(?:%%|$)/g;
-const LINK_REFERENCE_DEFINITION = /^[ \t]{0,3}\[(?!\^)[^\]\n]+\]:[ \t]*\S.*$/gm;
+const LINK_REFERENCE_DEFINITION =/^[ \t]{0,3}\[(?!\^)[^\]\n]+\]:[ \t]*\S.*$/gm;
 const FOOTNOTE_DEFINITION = /^[ \t]{0,3}\[\^[^\]\s]+\]:[ \t]*(.*)$/;
 const FOOTNOTE_CONTINUATION = /^(?: {4}|\t)\S/;
 const INLINE_FOOTNOTE = /\^\[([^\]\n]*)\]/g;
