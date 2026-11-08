@@ -51,7 +51,7 @@ The rationale behind `vitest.config.js`, kept here so the config itself stays fr
 | `pool: 'vmThreads'` | Building a jsdom costs roughly 200 to 500 ms, and the default pool pays that once per test file. `vmThreads` pays it once per worker while still giving every file a fresh `window`. `isolate: false` would be faster still, but it shares module state (such as `obsidian-test-mocks`' icon registry) across files in the same worker. The one known risk is cross-realm `instanceof` against externalized packages, so revisit this if a test ever checks `instanceof` against an Obsidian class |
 | `setupFiles: ['obsidian-test-mocks/vitest-setup']` | The mock library's own setup file, which installs the prototype extensions Obsidian adds to DOM and JS built-ins (such as `Element.prototype.addClass`) |
 | `include: ['src/**/*.test.ts']` | One glob covers the co-located tests and the ones in `src/test/` |
-| `coverage.provider: 'v8'`, four reporters | `json-summary` is the file the Ratchet reads (`.coverage/report/coverage-summary.json`); the others are for people |
+| `coverage.provider: 'v8'`, reporters `text` and `json-summary` | `json-summary` is the file the Ratchet reads (`.coverage/report/coverage-summary.json`); `text` is the table printed in the terminal and in CI logs. There is no `html` reporter. It crashed a run with an `ENOENT` on `mkdir` while writing the report tree, and because reporters run in the order listed, `json-summary` was never written and the Ratchet had nothing to read. Keeping the list to what CI and the Ratchet consume removes that failure mode. For a browsable report locally, run `pnpm vitest run --coverage --coverage.reporter=html` |
 | `coverage.reportsDirectory: '.coverage/report'` | Lives under the same dot-directory as the committed `baseline.json`, in its own subfolder so the two never collide. The report folder is regenerated every run and git-ignored; `baseline.json` is the one committed file under `.coverage/` |
 | `coverage.include: ['src/**/*.ts']` | Scopes coverage to application source. Without it, v8's default whole-project sweep pulls in root-level build tooling (`main.ts`, `esbuild.config.js`, `version-bump.js`) and the CI script under `.coverage/`, none of which is unit-testable logic and none of which should move the baseline |
 | `coverage.thresholds`, all `0` | The Ratchet is the gate, not Vitest: there is no invented target. Thresholds stay at zero so an empty or young suite never fails on percentage. The comparison against `.coverage/baseline.json` lives in `.coverage/check-coverage-ratchet.js` |
@@ -60,7 +60,7 @@ The rationale behind `vitest.config.js`, kept here so the config itself stays fr
 
 The Ratchet is in place as the philosophy defines it (Section 4). In this project:
 
-- The baseline in `.coverage/baseline.json` is `0` until the first real run, and moves only when a person edits it by hand.
+- The baseline in `.coverage/baseline.json` is the floor recorded from the first real run (lines 84.66, statements 83.76, functions 70.38, branches 89.23), and moves only when a person edits it by hand.
 - The tolerance (`EPSILON`) is `0.5`, deliberately smaller than the parent project's, because the timer is built on an injectable clock and has no real-time source of flakiness. If the number swings with no source change, find the nondeterministic test.
 - The percentage is not a goal and is not reported as one.
 

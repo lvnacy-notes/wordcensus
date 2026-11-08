@@ -196,8 +196,10 @@
   },
   "active": "cdd79aed6134e3c0",
   "lastOpenFiles": [
-    "temp.ts",
+    "temp.md",
     "temp.js",
+    "temp.json",
+    "temp.ts",
     "dist/styles.css",
     "dist/manifest.json",
     "dist/main.js",
