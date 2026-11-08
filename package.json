@@ -1,6 +1,6 @@
 {
 	"name": "wordcensus",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "Count words only inside a region of a note: between sentinel comments or under a heading.",
 	"main": "dist/main.js",
 	"type": "module",
