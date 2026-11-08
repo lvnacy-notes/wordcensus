@@ -1,7 +1,12 @@
 import type { App, Command } from 'obsidian';
-import { activateView } from '../obsidian/View';
+import { activateView } from '../obsidian/activateView';
 
-/** The command that reveals the sidebar panel. */
+/**
+ * Builds the command that reveals the word count panel in the right sidebar.
+ *
+ * @param app - The Obsidian application instance.
+ * @returns The `open-panel` command definition.
+ */
 export function buildInvokeCommand(app: App): Command {
 	return {
 		callback: () => {

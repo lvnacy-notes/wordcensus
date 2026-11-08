@@ -99,6 +99,14 @@ export interface HeadingRegion {
 	text: string;
 }
 
+/** The last word count seen for the session's note. */
+export interface LastCounts {
+	/** Notes the count of `note` if it is the session's note, and returns `note` unchanged. */
+	observe(note: NoteInfo | null): NoteInfo | null;
+	/** The last count seen for the note at `path`, or null if none was seen. */
+	recall(path: string): number | null;
+}
+
 /** The result of counting one note's region. */
 export interface NoteCount {
 	/** The heading counted under, or null outside heading mode. */

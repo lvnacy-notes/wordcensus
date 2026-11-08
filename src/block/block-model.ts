@@ -1,12 +1,6 @@
-/**
- * Pure logic for a `wordcount` code block: reading its parameters and
- * counting the note it sits in.
- */
+/** Pure logic for a `wordcount` code block: parsing its source and counting its note. */
 
-import {
-	countHeading,
-	countNote
-} from '../counting/note-count';
+import { countHeading, countNote } from '../counting/note-count';
 import type {
 	BlockOptions,
 	NoteCount,
@@ -18,7 +12,10 @@ import type {
  * Declared Variables and Constants
 ******************************************************************************/
 
+/** Matches a `heading:` line and captures its raw value. */
 const HEADING_LINE = /^\s*heading\s*:(.*)$/i;
+
+/** Matches a value wrapped in a matching pair of single or double quotes. */
 const SURROUNDING_QUOTES = /^(["'])(.*)\1$/;
 
 /******************************************************************************
@@ -27,8 +24,12 @@ const SURROUNDING_QUOTES = /^(["'])(.*)\1$/;
 
 /**
  * Counts the note for a block. A block with a `heading` counts under that
- * heading in every case; any other block counts the note's own region, as
- * the sidebar panel does.
+ * heading; any other block counts the note's own region, like the panel.
+ *
+ * @param note - The note text and its heading override.
+ * @param options - The block's parsed options.
+ * @param settings - The plugin settings.
+ * @returns The count for the block.
  */
 export function countBlock(
 	note: NoteText,
@@ -49,10 +50,12 @@ export function countBlock(
 }
 
 /**
- * Reads the block body. The only parameter is a `heading:` line, matched
- * case-insensitively; its value is trimmed and may be wrapped in quotes.
- * The first `heading:` line with a value wins, and every other line is
- * ignored.
+ * Parses a block body. The only parameter is a `heading:` line, matched
+ * case-insensitively, trimmed, and optionally wrapped in quotes. The first
+ * `heading:` line with a value wins; all other lines are ignored.
+ *
+ * @param source - The raw block body.
+ * @returns The parsed options, with a `null` heading when none is given.
  */
 export function parseBlockSource(source: string): BlockOptions {
 	for (const line of source.split(/\r\n|\r|\n/)) {

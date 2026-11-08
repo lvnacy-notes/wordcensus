@@ -1,17 +1,16 @@
 /**
- * Pure region extraction. Imports nothing from Obsidian.
+ * Pure region extraction; imports nothing from Obsidian.
  *
- * A region is the part of a note that gets counted. It is defined either by
- * sentinel comments (`<!-- word count start -->` / `<!-- word count end -->`)
- * or by a heading. `extractRegion` applies the precedence rules: sentinels
- * win, then a configured heading, then the whole note.
+ * A region is the part of a note that is counted. It is defined by sentinel
+ * comments (`<!-- word count start -->` / `<!-- word count end -->`) or by a
+ * heading. `extractRegion` applies the precedence: sentinels, then a
+ * configured heading, then the whole note.
  *
- * Scanning for sentinels and headings ignores anything that only looks like
- * one: frontmatter, fenced code, inline code and (for headings) comments.
+ * Scanning for sentinels and headings ignores frontmatter, fenced code,
+ * inline code, and (for headings) comments.
  *
- * The text this module returns is for `countWords`. For sentinel and
- * heading regions it always begins with a newline, so the counter never
- * reads a first line of `---` as frontmatter.
+ * The text returned for a sentinel or heading region always begins with a
+ * newline.
  */
 
 import {
@@ -30,7 +29,9 @@ import {
  * Interfaces and Types
 ******************************************************************************/
 
+/** An ATX heading line located in a note. */
 interface HeadingLine {
+	/** Heading level, 1 to 6. */
 	level: number;
 	/** Heading text as written, closing sequence removed. */
 	text: string;
@@ -44,11 +45,16 @@ interface HeadingLine {
  * Declared Variables and Constants
 ******************************************************************************/
 
-// An inline code span: a run of backticks closed by an equal run.
+/** An inline code span: a run of backticks closed by an equal run. */
 const INLINE_CODE = /(`+)[^`\n]+\1/g;
 
+/** A word count sentinel comment. Group 1 is `start` or `end`. */
 const SENTINEL = /<!--\s*word\s+count\s+(start|end)\s*-->/gi;
-// Up to three spaces of indent; four or more is an indented code block.
+
+/**
+ * An ATX heading line with up to three spaces of indent. Group 1 is the
+ * hashes; group 2 is the heading text.
+ */
 const ATX_HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/;
 
 /******************************************************************************
@@ -56,18 +62,31 @@ const ATX_HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/;
 ******************************************************************************/
 
 /**
- * Guarantees the leading newline described at the top of this file.
+ * Ensures region text begins with a newline.
+ *
+ * @param slice - The region text.
+ * @returns `slice`, prefixed with a newline unless it already starts with one.
  */
 function asRegionText(slice: string): string {
 	return slice.startsWith('\n') ? slice : `\n${ slice }`;
 }
 
-/** Replaces every character except newlines with a space, keeping offsets. */
+/**
+ * Replaces every character except newlines with a space, keeping offsets.
+ *
+ * @param text - The text to blank.
+ * @returns Text of the same length with only newlines and spaces.
+ */
 function blank(text: string): string {
 	return text.replace(/[^\n]/g, ' ');
 }
 
-/** Strips an ATX closing sequence (`## Title ##` -> `Title`). */
+/**
+ * Strips an ATX closing sequence (`## Title ##` becomes `Title`).
+ *
+ * @param raw - The heading text as written.
+ * @returns The trimmed heading text without a closing sequence.
+ */
 function cleanHeadingText(raw: string): string {
 	const trimmed = raw.trim();
 	if (/^#+$/.test(trimmed)) {
@@ -77,12 +96,16 @@ function cleanHeadingText(raw: string): string {
 }
 
 /**
- * The text under a heading, up to the next heading of the same or a higher
- * level (so `##` ends at the next `##` or `#`). Subheadings, and their
- * titles, are part of the region; the heading line itself is not.
+ * Extracts the text under a heading, up to the next heading of the same or a
+ * higher level (`##` ends at the next `##` or `#`). Subheadings and their
+ * titles are part of the region; the heading line itself is not.
  *
- * Matching is case-insensitive with whitespace collapsed, and the first
- * match wins. Returns null when there is no such heading.
+ * Matching is case-insensitive with whitespace collapsed, and the first match
+ * wins.
+ *
+ * @param text - The note text.
+ * @param heading - The heading to find.
+ * @returns The heading's region, or `null` when there is no such heading.
  */
 export function extractHeadingRegion(text: string, heading: string): HeadingRegion | null {
 	const wanted = normalizeHeading(heading);
@@ -110,40 +133,59 @@ export function extractHeadingRegion(text: string, heading: string): HeadingRegi
 }
 
 /**
- * Picks the region to count. Sentinels win; otherwise a configured heading;
- * otherwise the whole note.
+ * Picks the region to count: sentinels, else the configured heading, else the
+ * whole note. A configured heading that is not found yields an empty
+ * heading-mode result with `found: false`; it does not fall back to the whole
+ * note.
  *
- * A configured heading that cannot be found yields an empty heading-mode
- * result with `found: false`; it does not fall back to the whole note.
+ * @param text - The note text.
+ * @param config - The region configuration, including the configured heading.
+ * @returns The region's mode and text, with mode-specific details.
  */
 export function extractRegion(text: string, config: RegionConfig = {}): RegionResult {
 	const source = normalizeNewlines(text);
 
 	const sentinelRegions = extractSentinelRegions(source);
 	if (sentinelRegions.length > 0) {
-		return { mode: 'sentinel', text: sentinelRegions.join(''), pairs: sentinelRegions.length };
+		return {
+			mode: 'sentinel',
+			text: sentinelRegions.join(''),
+			pairs: sentinelRegions.length
+		};
 	}
 
 	const configured = config.heading?.trim() ?? '';
 	if (configured !== '') {
 		const region = extractHeadingRegion(source, configured);
 		return region
-			? { mode: 'heading', text: region.text, heading: region.heading, found: true }
-			: { mode: 'heading', text: '', heading: configured, found: false };
+			? {
+				mode: 'heading',
+				text: region.text,
+				heading: region.heading,
+				found: true
+			}
+			: {
+				mode: 'heading',
+				text: '',
+				heading: configured,
+				found: false
+			};
 	}
 
 	return { mode: 'note', text: source };
 }
 
 /**
- * The text of every sentinel region in the note, in order.
+ * Extracts the text of every sentinel region in the note, in order.
  *
  * - A start with no end runs to the end of the text.
  * - An end with no start is ignored.
- * - A start inside an open region is ignored (it stays in the region text;
- *   the counter drops it as an ordinary comment).
+ * - A start inside an open region is ignored and stays in the region text.
  *
  * Markers are matched case-insensitively and tolerate extra whitespace.
+ *
+ * @param text - The note text.
+ * @returns The region texts, empty when the note has no sentinels.
  */
 export function extractSentinelRegions(text: string): string[] {
 	const source = normalizeNewlines(text);
@@ -169,8 +211,11 @@ export function extractSentinelRegions(text: string): string[] {
 }
 
 /**
- * All ATX headings outside frontmatter, code and comments, in order.
+ * Finds all ATX headings outside frontmatter, code, and comments, in order.
  * Setext headings (underlined with `===` or `---`) are not recognised.
+ *
+ * @param text - The note text, with LF line endings.
+ * @returns The headings with their levels, text, and line offsets.
  */
 function findHeadings(text: string): HeadingLine[] {
 	const masked = maskCode(text)
@@ -187,8 +232,8 @@ function findHeadings(text: string): HeadingLine[] {
 		if (!ATX_HEADING.test(maskedLine)) {
 			continue;
 		}
-		// The heading text is taken from the original line, which keeps inline
-		// code and comments.
+		// Heading text comes from the original line, so inline code and
+		// comments are kept.
 		const original = ATX_HEADING.exec(text.slice(lineStart, lineEnd));
 		if (!original) {
 			continue;
@@ -204,9 +249,11 @@ function findHeadings(text: string): HeadingLine[] {
 }
 
 /**
- * Returns `text` with frontmatter, fenced code and inline code blanked out.
- * The result is exactly as long as the input, so offsets found in it can be
- * used to slice the original.
+ * Blanks out frontmatter, fenced code, and inline code. The result is the same
+ * length as the input, so offsets found in it index the original.
+ *
+ * @param text - The note text, with LF line endings.
+ * @returns The masked text.
  */
 function maskCode(text: string): string {
 	const frontmatter = FRONTMATTER.exec(text);
@@ -243,13 +290,22 @@ function maskCode(text: string): string {
 }
 
 /**
- * The text of a heading as it is compared: trimmed, whitespace collapsed,
+ * Normalizes a heading for comparison: trimmed, whitespace collapsed,
  * case-folded.
+ *
+ * @param heading - The heading text.
+ * @returns The normalized heading.
  */
 function normalizeHeading(heading: string): string {
 	return heading.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/**
+ * Converts CRLF and CR line endings to LF.
+ *
+ * @param text - The text to normalize.
+ * @returns The text with LF line endings.
+ */
 function normalizeNewlines(text: string): string {
 	return text.replace(/\r\n?/g, '\n');
 }

@@ -1,20 +1,18 @@
 /**
- * Pure timer state machine. Imports nothing from Obsidian and has no clock
- * of its own: every function that needs the time takes `now` (milliseconds,
- * as from `Date.now()`).
+ * Pure timer state machine; imports nothing from Obsidian and has no clock of
+ * its own. Every function that needs the time takes `now`, in milliseconds as
+ * from `Date.now()`.
  *
- * Elapsed time is always computed from timestamps, never by counting
- * ticks.
+ * Elapsed time is computed from timestamps, never by counting ticks.
  *
- * There are three modes (stopwatch, countdown, session). Each keeps its
- * own independent run; switching the selected mode never stops or resets
- * anything. `startTimer`, `pauseTimer` and `resetTimer` act on the
- * selected mode; `tickTimer` and `freezeTimer` act on all of them.
+ * There are three modes (stopwatch, countdown, session), each with its own
+ * independent run. Switching the selected mode never stops or resets
+ * anything. `startTimer`, `pauseTimer`, and `resetTimer` act on the selected
+ * mode; `tickTimer` and `freezeTimer` act on all of them.
  *
  * Every function returns a new state and never mutates its input. The ones
  * that can be no-ops (`startTimer`, `pauseTimer`, `tickTimer`,
- * `setCountdownDuration`) return the very same object when nothing
- * changes.
+ * `setCountdownDuration`) return the very same object when nothing changes.
  */
 
 import { isRecord } from '../guards';
@@ -33,32 +31,72 @@ import type {
  * Declared Variables and Constants
 ******************************************************************************/
 
+/** Milliseconds in a minute. */
 export const MINUTE_MS = 60_000;
+
+/** The countdown length of a new timer, in milliseconds. */
 export const DEFAULT_COUNTDOWN_MS = 25 * MINUTE_MS;
+
+/** The longest allowed countdown, in milliseconds. */
 export const MAX_COUNTDOWN_MS = 24 * 60 * MINUTE_MS;
+
+/** The shortest allowed countdown, in milliseconds. */
 export const MIN_COUNTDOWN_MS = 1000;
-export const TIMER_MODES: readonly TimerMode[] = ['stopwatch', 'countdown', 'session'];
+
+/** Every timer mode, in display order. */
+export const TIMER_MODES: readonly TimerMode[] = [
+	'stopwatch',
+	'countdown',
+	'session'
+];
 
 /******************************************************************************
  * Functions
 ******************************************************************************/
 
+/**
+ * Starts a run if it is not already running.
+ *
+ * @param run - The run to start.
+ * @param now - The current time in milliseconds.
+ * @returns The run, started at `now` unless it was already running.
+ */
 function begin<T extends Run>(run: T, now: number): T {
 	return run.startedAt === null ? { ...run, startedAt: now } : run;
 }
 
+/**
+ * Creates a timer in stopwatch mode with every run idle and the default
+ * countdown length.
+ *
+ * @returns The new timer state.
+ */
 export function createTimer(): TimerState {
 	return {
 		mode: 'stopwatch',
 		stopwatch: { accumulatedMs: 0, startedAt: null },
-		countdown: { accumulatedMs: 0, startedAt: null, durationMs: DEFAULT_COUNTDOWN_MS },
-		session: { accumulatedMs: 0, startedAt: null, binding: null, result: null }
+		countdown: {
+			accumulatedMs: 0,
+			startedAt: null,
+			durationMs: DEFAULT_COUNTDOWN_MS
+		},
+		session: {
+			accumulatedMs: 0,
+			startedAt: null,
+			binding: null,
+			result: null
+		}
 	};
 }
 
 /**
- * Total running time. Time spent paused is never included, and a clock
- * that moves backwards (a system time change) never makes a run shorter.
+ * Computes a run's total running time. Time spent paused is never included,
+ * and a clock that moves backwards (a system time change) never makes a run
+ * shorter.
+ *
+ * @param run - The run to measure.
+ * @param now - The current time in milliseconds.
+ * @returns The elapsed running time in milliseconds.
  */
 export function elapsedMs(run: Run, now: number): number {
 	const { accumulatedMs, startedAt } = run;
@@ -73,10 +111,15 @@ export function elapsedMs(run: Run, now: number): number {
  * folder that was deleted; a session bound to anything else is left alone.
  *
  * The session is paused, unbound, and keeps its figures as they stood:
- * elapsed time stays on its clock, and `result` records the words written
- * and the rate. `currentWords` is the note's last known count, or null if
- * there is none, in which case those two are null. Like a finished
- * countdown, an ended session ignores Start until it is reset.
+ * elapsed time stays on its clock, and `result` records the words written and
+ * the rate. When `currentWords` is `null` those two are `null`. Like a
+ * finished countdown, an ended session ignores Start until it is reset.
+ *
+ * @param state - The timer state.
+ * @param path - The path of the deleted note or folder.
+ * @param now - The current time in milliseconds.
+ * @param currentWords - The note's last known count, or `null` if there is none.
+ * @returns The new state, or `state` itself when the session is not affected.
  */
 export function endSession(
 	state: TimerState,
@@ -109,10 +152,14 @@ export function endSession(
 }
 
 /**
- * Formats a duration for display: `m:ss`, or `h:mm:ss` from one hour up.
- * Partial seconds round down by default. `'ceil'` rounds them up, so a
- * countdown shows `0:00` only once it has finished.
- * Negative and non-finite values show as zero.
+ * Formats a duration as `m:ss`, or `h:mm:ss` from one hour up. Partial
+ * seconds round down by default; `'ceil'` rounds them up, so a countdown
+ * shows `0:00` only once it has finished. Negative and non-finite values show
+ * as zero.
+ *
+ * @param ms - The duration in milliseconds.
+ * @param rounding - How partial seconds round.
+ * @returns The formatted duration.
  */
 export function formatDuration(ms: number, rounding: 'floor' | 'ceil' = 'floor'): string {
 	const safe = Number.isFinite(ms) ? Math.max(0, ms) : 0;
@@ -127,9 +174,12 @@ export function formatDuration(ms: number, rounding: 'floor' | 'ceil' = 'floor')
 }
 
 /**
- * Pauses every mode that is running, after settling a countdown that has
- * run out. This is what gets saved: whatever was running comes back
- * paused, so time the app spent closed is never silently counted.
+ * Pauses every mode that is running, after settling a countdown that has run
+ * out. The result is what gets saved: whatever was running comes back paused.
+ *
+ * @param state - The timer state.
+ * @param now - The current time in milliseconds.
+ * @returns The state with every run paused.
  */
 export function freezeTimer(state: TimerState, now: number): TimerState {
 	const settled = tickTimer(state, now);
@@ -141,33 +191,73 @@ export function freezeTimer(state: TimerState, now: number): TimerState {
 	};
 }
 
+/**
+ * Pauses a run, folding its running time into its total.
+ *
+ * @param run - The run to pause.
+ * @param now - The current time in milliseconds.
+ * @returns The paused run, or `run` itself when it is not running.
+ */
 function halt<T extends Run>(run: T, now: number): T {
 	if (run.startedAt === null) {
 		return run;
 	}
-	return { ...run, accumulatedMs: elapsedMs(run, now), startedAt: null };
+	return {
+		...run,
+		accumulatedMs: elapsedMs(run, now),
+		startedAt: null
+	};
 }
 
-/** True once a countdown has run out and been stopped at zero by `tickTimer`. */
+/**
+ * Tells whether a countdown has run out and been stopped at zero by
+ * `tickTimer`.
+ *
+ * @param countdown - The countdown run.
+ * @returns `true` once the countdown has finished.
+ */
 export function isCountdownFinished(countdown: CountdownRun): boolean {
 	return countdown.startedAt === null && countdown.accumulatedMs >= countdown.durationMs;
 }
 
+/**
+ * Tells whether a run is running.
+ *
+ * @param run - The run to test.
+ * @returns `true` when the run has been started and not paused.
+ */
 export function isRunning(run: Run): boolean {
 	return run.startedAt !== null;
 }
 
-/** True once a session has ended because its note was deleted, until it is reset. */
+/**
+ * Tells whether a session has ended because its note was deleted, until it is
+ * reset.
+ *
+ * @param session - The session run.
+ * @returns `true` once the session has ended.
+ */
 export function isSessionEnded(session: SessionRun): boolean {
 	return session.result !== null;
 }
 
-/** True when `path` is `parent` itself or is inside that folder. */
+/**
+ * Tells whether `path` is `parent` itself or is inside that folder.
+ *
+ * @param path - The path to test.
+ * @param parent - The note or folder path.
+ * @returns `true` when `path` is `parent` or inside it.
+ */
 function isWithin(path: string, parent: string): boolean {
 	return path === parent || path.startsWith(`${ parent }/`);
 }
 
-/** Clamps to the allowed range, or returns null for anything that is not a finite number. */
+/**
+ * Clamps a countdown duration to the allowed range.
+ *
+ * @param value - The value to normalize.
+ * @returns The clamped duration, or `null` for anything that is not a finite number.
+ */
 function normalizeDuration(value: unknown): number | null {
 	if (typeof value !== 'number' || !Number.isFinite(value)) {
 		return null;
@@ -175,7 +265,14 @@ function normalizeDuration(value: unknown): number | null {
 	return Math.min(MAX_COUNTDOWN_MS, Math.max(MIN_COUNTDOWN_MS, value));
 }
 
-/** Pauses the selected mode, folding the running time into its total. */
+/**
+ * Pauses the selected mode, folding the running time into its total. A
+ * countdown that has run out is settled first.
+ *
+ * @param state - The timer state.
+ * @param now - The current time in milliseconds.
+ * @returns The new state, or `state` itself when nothing changes.
+ */
 export function pauseTimer(state: TimerState, now: number): TimerState {
 	const settled = tickTimer(state, now);
 	if (!isRunning(selectedRun(settled))) {
@@ -191,44 +288,78 @@ export function pauseTimer(state: TimerState, now: number): TimerState {
 	}
 }
 
+/**
+ * Follows the session's note when `oldPath`, a note or a folder, is moved or
+ * renamed to `newPath`. A session bound to anything else is left alone.
+ *
+ * @param state - The timer state.
+ * @param oldPath - The path before the move.
+ * @param newPath - The path after the move.
+ * @returns The new state, or `state` itself when nothing changes.
+ */
+export function rebindSession(
+	state: TimerState,
+	oldPath: string,
+	newPath: string
+): TimerState {
+	const { binding } = state.session;
+	if (binding === null || !isWithin(binding.path, oldPath)) {
+		return state;
+	}
+	const path = newPath + binding.path.slice(oldPath.length);
+	return { ...state, session: { ...state.session, binding: { ...binding, path } } };
+}
+
+/**
+ * Computes the time left on a countdown.
+ *
+ * @param countdown - The countdown run.
+ * @param now - The current time in milliseconds.
+ * @returns The remaining milliseconds, never below zero.
+ */
 export function remainingMs(countdown: CountdownRun, now: number): number {
 	return Math.max(0, countdown.durationMs - elapsedMs(countdown, now));
 }
 
 /**
- * Follows the session's note when `oldPath`, a note or a folder, is moved
- * or renamed to `newPath`. A session bound to anything else is left alone.
- * The same object comes back when nothing changes.
- */
-export function rebindSession(state: TimerState, oldPath: string, newPath: string): TimerState {
-	const { binding } = state.session;
-	if (binding === null || !isWithin(binding.path, oldPath)) {
-		return state;
-	}
-	return {
-		...state,
-		session: {
-			...state.session,
-			binding: { ...binding, path: newPath + binding.path.slice(oldPath.length) }
-		}
-	};
-}
-
-/**
- * Clears the selected mode back to idle. A countdown keeps its duration;
- * a session forgets its note and any result.
+ * Clears the selected mode back to idle. A countdown keeps its duration; a
+ * session forgets its note and any result.
+ *
+ * @param state - The timer state.
+ * @returns The state with the selected mode reset.
  */
 export function resetTimer(state: TimerState): TimerState {
 	switch (state.mode) {
 		case 'stopwatch':
 			return { ...state, stopwatch: { accumulatedMs: 0, startedAt: null } };
 		case 'countdown':
-			return { ...state, countdown: { ...state.countdown, accumulatedMs: 0, startedAt: null } };
+			return {
+				...state,
+				countdown: {
+					...state.countdown,
+					accumulatedMs: 0,
+					startedAt: null
+				}
+			};
 		case 'session':
-			return { ...state, session: { accumulatedMs: 0, startedAt: null, binding: null, result: null } };
+			return {
+				...state,
+				session: {
+					accumulatedMs: 0,
+					startedAt: null,
+					binding: null,
+					result: null
+				}
+			};
 	}
 }
 
+/**
+ * Restores a session binding from saved data.
+ *
+ * @param value - The saved binding, of any shape.
+ * @returns The binding, or `null` when its path or baseline is invalid.
+ */
 function restoreBinding(value: unknown): SessionBinding | null {
 	if (!isRecord(value)) {
 		return null;
@@ -239,13 +370,30 @@ function restoreBinding(value: unknown): SessionBinding | null {
 	return validPath && validWords ? { path, baselineWords } : null;
 }
 
+/**
+ * Restores a countdown from saved data, paused, with its duration clamped and
+ * its accumulated time capped at the duration.
+ *
+ * @param value - The saved countdown, of any shape.
+ * @returns The countdown run.
+ */
 function restoreCountdown(value: unknown): CountdownRun {
 	const stored = isRecord(value) ? value : {};
 	const durationMs = normalizeDuration(stored.durationMs) ?? DEFAULT_COUNTDOWN_MS;
 	const run = restoreRun(stored);
-	return { ...run, accumulatedMs: Math.min(run.accumulatedMs, durationMs), durationMs };
+	return {
+		...run,
+		accumulatedMs: Math.min(run.accumulatedMs, durationMs),
+		durationMs
+	};
 }
 
+/**
+ * Restores a session result from saved data.
+ *
+ * @param value - The saved result, of any shape.
+ * @returns The result, or `null` when its path is invalid. Invalid figures become `null`.
+ */
 function restoreResult(value: unknown): SessionResult | null {
 	if (!isRecord(value)) {
 		return null;
@@ -267,16 +415,27 @@ function restoreResult(value: unknown): SessionResult | null {
 	};
 }
 
-/** A run always comes back paused, whatever was stored. */
+/**
+ * Restores a run from saved data. A run always comes back paused.
+ *
+ * @param value - The saved run, of any shape.
+ * @returns The run, with zero accumulated time when the saved value is invalid.
+ */
 function restoreRun(value: unknown): Run {
 	const stored = isRecord(value) ? value.accumulatedMs : undefined;
 	const valid = typeof stored === 'number' && Number.isFinite(stored) && stored >= 0;
 	return { accumulatedMs: valid ? stored : 0, startedAt: null };
 }
 
+/**
+ * Restores a session from saved data, paused. A stored result wins over a
+ * stored binding.
+ *
+ * @param value - The saved session, of any shape.
+ * @returns The session run.
+ */
 function restoreSession(value: unknown): SessionRun {
 	const stored = isRecord(value) ? value : {};
-	// An ended session has no note, so a stored result wins over a stored binding.
 	const result = restoreResult(stored.result);
 	return {
 		...restoreRun(stored),
@@ -287,9 +446,12 @@ function restoreSession(value: unknown): SessionRun {
 
 /**
  * Rebuilds a timer from saved data of unknown shape. Anything missing,
- * malformed or left over from an older version is replaced with a safe
- * default, unknown fields are dropped, and every run comes back paused.
- * Never throws.
+ * malformed, or left over from an older version is replaced with a safe
+ * default, unknown fields are dropped, and every run comes back paused. Never
+ * throws.
+ *
+ * @param data - The saved timer, of any shape.
+ * @returns A valid timer state.
  */
 export function restoreTimer(data: unknown): TimerState {
 	const stored = isRecord(data) ? data : {};
@@ -302,7 +464,12 @@ export function restoreTimer(data: unknown): TimerState {
 	};
 }
 
-/** The run belonging to the selected mode. */
+/**
+ * Gets the run belonging to the selected mode.
+ *
+ * @param state - The timer state.
+ * @returns The selected mode's run.
+ */
 export function selectedRun(state: TimerState): Run {
 	switch (state.mode) {
 		case 'stopwatch':
@@ -315,14 +482,19 @@ export function selectedRun(state: TimerState): Run {
 }
 
 /**
- * Words written and the writing rate for the session.
+ * Computes words written and the writing rate for the session.
  *
- * The rate uses running time only, so time spent paused never lowers it.
- * It is never negative, even when more text was removed than written.
- * `currentWords` is the bound note's region count right now, or null when
- * that count isn't available (the note hasn't been read yet, or was moved or
- * deleted). Without it there is nothing to measure against the baseline, so
- * the session reports no words or rate, as an unbound session does.
+ * The rate uses running time only, so time spent paused never lowers it, and
+ * it is never negative, even when more text was removed than written.
+ * `currentWords` is the bound note's region count right now, or `null` when
+ * that count isn't available. Without it there is nothing to measure against
+ * the baseline, so the session reports no words or rate, as an unbound
+ * session does.
+ *
+ * @param state - The timer state.
+ * @param now - The current time in milliseconds.
+ * @param currentWords - The bound note's current region count, or `null`.
+ * @returns The elapsed time, words written, and words per minute.
  */
 export function sessionStats(
 	state: TimerState,
@@ -332,26 +504,44 @@ export function sessionStats(
 	const { session } = state;
 	const elapsed = elapsedMs(session, now);
 	if (session.binding === null || currentWords === null) {
-		return { elapsedMs: elapsed, wordsWritten: null, wordsPerMinute: null };
+		return {
+			elapsedMs: elapsed,
+			wordsWritten: null,
+			wordsPerMinute: null
+		};
 	}
 	const wordsWritten = currentWords - session.binding.baselineWords;
 	const minutes = elapsed / MINUTE_MS;
 	const wordsPerMinute = minutes > 0 ? Math.max(0, wordsWritten) / minutes : 0;
-	return { elapsedMs: elapsed, wordsWritten, wordsPerMinute };
+	return {
+		elapsedMs: elapsed,
+		wordsWritten,
+		wordsPerMinute
+	};
 }
 
 /**
  * Sets the countdown's duration and restarts it from the new value. Only
- * allowed while the countdown is not running, and only for a finite
- * number; anything else leaves the state unchanged. Out-of-range values
- * are clamped.
+ * allowed while the countdown is not running, and only for a finite number;
+ * anything else leaves the state unchanged. Out-of-range values are clamped.
+ *
+ * @param state - The timer state.
+ * @param durationMs - The new duration in milliseconds.
+ * @returns The new state, or `state` itself when nothing changes.
  */
 export function setCountdownDuration(state: TimerState, durationMs: number): TimerState {
 	const duration = normalizeDuration(durationMs);
 	if (duration === null || isRunning(state.countdown)) {
 		return state;
 	}
-	return { ...state, countdown: { ...state.countdown, durationMs: duration, accumulatedMs: 0 } };
+	return {
+		...state,
+		countdown: {
+			...state.countdown,
+			durationMs: duration,
+			accumulatedMs: 0
+		}
+	};
 }
 
 /**
@@ -361,10 +551,19 @@ export function setCountdownDuration(state: TimerState, durationMs: number): Tim
  * - A finished countdown does nothing until it is reset, and neither does a
  *   session that ended because its note was deleted.
  * - A session binds to `binding` the first time it starts. Once bound it
- *   keeps that note, whatever is passed on resume. With no binding at all
- *   it runs unbound and reports no word statistics.
+ *   keeps that note, whatever is passed on resume. With no binding at all it
+ *   runs unbound and reports no word statistics.
+ *
+ * @param state - The timer state.
+ * @param now - The current time in milliseconds.
+ * @param binding - The note for a session to bind to on its first start.
+ * @returns The new state, or `state` itself when nothing changes.
  */
-export function startTimer(state: TimerState, now: number, binding?: SessionBinding): TimerState {
+export function startTimer(
+	state: TimerState,
+	now: number,
+	binding?: SessionBinding
+): TimerState {
 	if (isRunning(selectedRun(state))) {
 		return state;
 	}
@@ -378,21 +577,18 @@ export function startTimer(state: TimerState, now: number, binding?: SessionBind
 		case 'session':
 			return isSessionEnded(state.session)
 				? state
-				: {
-					...state,
-					session: {
-						...begin(state.session, now),
-						binding: state.session.binding ?? binding ?? null
-					}
-				};
+				: { ...state, session: { ...begin(state.session, now), binding: state.session.binding ?? binding ?? null } };
 	}
 }
 
 /**
- * Stops a running countdown at zero. A late call still lands the
- * countdown exactly on its duration; it never overshoots.
+ * Stops a running countdown at zero. A late call still lands the countdown
+ * exactly on its duration; it never overshoots. Applies to the countdown
+ * whichever mode is selected.
  *
- * Applies to the countdown whichever mode is selected.
+ * @param state - The timer state.
+ * @param now - The current time in milliseconds.
+ * @returns The new state, or `state` itself when no countdown has run out.
  */
 export function tickTimer(state: TimerState, now: number): TimerState {
 	const { countdown } = state;
@@ -401,6 +597,10 @@ export function tickTimer(state: TimerState, now: number): TimerState {
 	}
 	return {
 		...state,
-		countdown: { ...countdown, accumulatedMs: countdown.durationMs, startedAt: null }
+		countdown: {
+			...countdown,
+			accumulatedMs: countdown.durationMs,
+			startedAt: null
+		}
 	};
 }

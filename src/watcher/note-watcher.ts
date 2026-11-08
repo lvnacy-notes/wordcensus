@@ -1,13 +1,13 @@
 /**
- * One shared watcher over the vault. The panel, the status bar and every
- * `wordcount` block listen through it, so Obsidian is listened to once however
- * many of them are open, and a property change in a note nobody is showing
- * wakes nobody. The events themselves arrive through `WatcherSources`; it
- * imports nothing from Obsidian.
+ * One shared watcher over the vault, through which the panel, the status bar,
+ * and every `wordcount` block listen to Obsidian. Obsidian is listened to once
+ * however many subscribers there are, and a property change wakes only the
+ * subscribers that watch that note. Events arrive through `WatcherSources`;
+ * the module imports nothing from Obsidian.
  *
- * It listens to Obsidian only while something is subscribed: the editing,
- * active-note, property and setting events while there is a watcher, and the
- * move and delete events while there is a watcher or a move or delete handler.
+ * It listens only while something is subscribed: editing, active-note,
+ * property, and setting events while there is a watcher, and move and delete
+ * events while there is a watcher or a move or delete handler.
  */
 
 import type {
@@ -21,6 +21,7 @@ import type {
  * Interfaces and Types
 ******************************************************************************/
 
+/** A watcher's handler and the notes whose property changes it cares about. */
 interface Subscription {
 	handler: () => void;
 	options: WatchOptions | undefined;
@@ -30,12 +31,19 @@ interface Subscription {
  * Declared Variables and Constants
 ******************************************************************************/
 
+/** The pause after the last edit before subscribers are notified, in milliseconds. */
 const EDIT_DEBOUNCE_MS = 500;
 
 /******************************************************************************
  * Functions
 ******************************************************************************/
 
+/**
+ * Creates the shared note watcher.
+ *
+ * @param sources - The Obsidian events the watcher listens to.
+ * @returns The watcher, with `watch`, `onMove`, `onDelete`, and `dispose`.
+ */
 export function createNoteWatcher(sources: WatcherSources): NoteWatcher {
 	const subscriptions = new Set<Subscription>();
 	const deleteHandlers = new Set<{ handler: (path: string) => void }>();
@@ -43,13 +51,14 @@ export function createNoteWatcher(sources: WatcherSources): NoteWatcher {
 	let stopNotes: (() => void) | null = null;
 	let stopFiles: (() => void) | null = null;
 
-	// Every notification loop walks a copy, so a handler may unsubscribe itself.
+	/** Notifies every subscriber; a handler may unsubscribe itself meanwhile. */
 	const notifyAll = (): void => {
 		for (const subscription of [...subscriptions]) {
 			subscription.handler();
 		}
 	};
 
+	/** Tells whether a subscription wants property changes for `path`. */
 	const wants = (options: WatchOptions | undefined, path: string): boolean => {
 		if (options === undefined) {
 			return true;
@@ -60,6 +69,7 @@ export function createNoteWatcher(sources: WatcherSources): NoteWatcher {
 		return options.paths?.().includes(path) ?? false;
 	};
 
+	/** Notifies the subscribers that want property changes for `path`. */
 	const notifyMetadata = (path: string): void => {
 		for (const subscription of [...subscriptions]) {
 			if (wants(subscription.options, path)) {
@@ -68,6 +78,7 @@ export function createNoteWatcher(sources: WatcherSources): NoteWatcher {
 		}
 	};
 
+	/** Listens to editing, active-note, property, and setting events; returns a function that stops. */
 	const listenToNotes = (): (() => void) => {
 		const edits: Debounced = sources.debounce(notifyAll, EDIT_DEBOUNCE_MS);
 		const stops = [
@@ -84,30 +95,27 @@ export function createNoteWatcher(sources: WatcherSources): NoteWatcher {
 		};
 	};
 
-	// Handlers run before the watchers, so a watcher that reads the timer after
-	// a move or delete sees the timer already updated.
+	/** Listens to move and delete events, running handlers before notifying subscribers; returns a function that stops. */
 	const listenToFiles = (): (() => void) => {
-		const stops = [
-			sources.onMove((oldPath, newPath) => {
-				for (const { handler } of [...moveHandlers]) {
-					handler(oldPath, newPath);
-				}
-				notifyAll();
-			}),
-			sources.onDelete((path) => {
-				for (const { handler } of [...deleteHandlers]) {
-					handler(path);
-				}
-				notifyAll();
-			})
-		];
-		return () => {
-			for (const stop of stops) {
-				stop();
+		const stopMove = sources.onMove((oldPath, newPath) => {
+			for (const { handler } of [...moveHandlers]) {
+				handler(oldPath, newPath);
 			}
+			notifyAll();
+		});
+		const stopDelete = sources.onDelete((path) => {
+			for (const { handler } of [...deleteHandlers]) {
+				handler(path);
+			}
+			notifyAll();
+		});
+		return () => {
+			stopMove();
+			stopDelete();
 		};
 	};
 
+	/** Starts or stops listening so that it matches what is subscribed. */
 	const sync = (): void => {
 		const watching = subscriptions.size > 0;
 		const filing = watching || deleteHandlers.size > 0 || moveHandlers.size > 0;
@@ -125,6 +133,7 @@ export function createNoteWatcher(sources: WatcherSources): NoteWatcher {
 		}
 	};
 
+	/** Adds an entry and syncs; returns a function that removes it. */
 	const register = <T extends object>(entries: Set<T>, entry: T): (() => void) => {
 		entries.add(entry);
 		sync();
@@ -135,6 +144,7 @@ export function createNoteWatcher(sources: WatcherSources): NoteWatcher {
 	};
 
 	return {
+		/** Drops every subscriber and stops listening. */
 		dispose(): void {
 			subscriptions.clear();
 			deleteHandlers.clear();
