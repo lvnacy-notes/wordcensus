@@ -1,7 +1,7 @@
 {
 	"id": "wordcensus",
 	"name": "Word Census",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"minAppVersion": "1.13.0",
 	"description": "Count words within a specific region of your note. Includes stopwatch, countdown, and session timers, and an updating code block processor to see word count inline.",
 	"author": "LVNACY",

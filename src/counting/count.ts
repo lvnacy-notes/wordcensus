@@ -1,17 +1,15 @@
 /**
- * Pure word counting. Imports nothing from Obsidian.
+ * Pure word counting; imports nothing from Obsidian.
  *
- * `countWords` takes the text of a region (see region.ts) and returns how
- * many words it contains, after removing everything that is Markdown
- * machinery rather than prose: frontmatter, comments, link URLs, list
- * markers, footnote references, block ids, HTML tags, and so on.
+ * `countWords` returns the number of words in a region's text after removing
+ * Markdown machinery: frontmatter, comments, link URLs, list markers,
+ * footnote references, block ids, HTML tags, and so on.
  *
- * Counting follows word-processor conventions: a word is a run of
- * non-whitespace containing at least one letter or number, so "well-known"
- * and "don't" are one word each. Scripts that are not written with spaces
- * between words (Chinese, Japanese, Thai, ...) are handed to
- * `Intl.Segmenter`. Where `Intl.Segmenter` does not exist, those scripts
- * fall back to one word per character.
+ * A word is a run of non-whitespace containing at least one letter or number,
+ * so "well-known" and "don't" count once each. Scripts written without spaces
+ * between words (Chinese, Japanese, Thai, ...) are segmented with
+ * `Intl.Segmenter`, or counted as one word per character where it is
+ * unavailable.
  */
 
 import {
@@ -26,26 +24,30 @@ import type { CountOptions, WordSegmenter } from '../types';
  * Interfaces and Types
 ******************************************************************************/
 
+/** The kind of a text segment: prose, fenced code, or a `wordcount` block. */
 type SegmentKind = 'prose' | 'code' | 'wordcount';
 
+/** A run of text of one kind. */
 interface TextSegment {
 	kind: SegmentKind;
 	text: string;
 }
 
+/******************************************************************************
+ * Declared Variables and Constants
+******************************************************************************/
+
+/** The counting options used for any option not passed to `countWords`. */
 export const DEFAULT_COUNT_OPTIONS: Readonly<CountOptions> = Object.freeze({
 	includeCodeBlocks: false,
 	includeFootnotes: true,
 	includeEmbeds: false
 });
 
-/******************************************************************************
- * Declared Variables and Constants
-******************************************************************************/
-
+/** A single letter or number. */
 const LETTER_OR_NUMBER = /[\p{L}\p{N}]/u;
 
-// Scripts written without spaces between words. Hangul is not in this list.
+/** Character-class body for scripts written without spaces between words; excludes Hangul. */
 const NON_SPACED_SCRIPTS = [
 	'\\p{Script=Han}',
 	'\\p{Script=Hiragana}',
@@ -55,35 +57,81 @@ const NON_SPACED_SCRIPTS = [
 	'\\p{Script=Khmer}',
 	'\\p{Script=Myanmar}'
 ].join('');
+
+/** A single character from a non-spaced script. */
 const NON_SPACED = new RegExp(`[${ NON_SPACED_SCRIPTS }]`, 'u');
+
+/** Splits a chunk into single non-spaced characters and runs of everything else. */
 const NON_SPACED_SPLIT = new RegExp(`[${ NON_SPACED_SCRIPTS }]|[^${ NON_SPACED_SCRIPTS }]+`, 'gu');
 
-const LINK_REFERENCE_DEFINITION =/^[ \t]{0,3}\[(?!\^)[^\]\n]+\]:[ \t]*\S.*$/gm;
+/** A link reference definition line (`[id]: url`), excluding footnote definitions. */
+const LINK_REFERENCE_DEFINITION = /^[ \t]{0,3}\[(?!\^)[^\]\n]+\]:[ \t]*\S.*$/gm;
+
+/** The first line of a footnote definition. Group 1 is its text. */
 const FOOTNOTE_DEFINITION = /^[ \t]{0,3}\[\^[^\]\s]+\]:[ \t]*(.*)$/;
+
+/** A line indented by four spaces or a tab, continuing a footnote definition. */
 const FOOTNOTE_CONTINUATION = /^(?: {4}|\t)\S/;
+
+/** An inline footnote (`^[text]`). Group 1 is its text. */
 const INLINE_FOOTNOTE = /\^\[([^\]\n]*)\]/g;
+
+/** A footnote reference (`[^id]`). */
 const FOOTNOTE_REFERENCE = /\[\^[^\]\s]+\]/g;
+
+/** A wikilink embed (`![[target]]`). Group 1 is the inner text. */
 const EMBED_WIKILINK = /!\[\[([^\]\n]*)\]\]/g;
+
+/** An image embed (`![alt](url)`). Group 1 is the alt text. */
 const EMBED_IMAGE = /!\[([^\]\n]*)\]\((?:<[^>\n]*>|[^)\n]*)\)/g;
+
+/** A wikilink (`[[target|alias]]`). Group 1 is the inner text. */
 const WIKILINK = /\[\[([^\]\n]*)\]\]/g;
+
+/** An inline Markdown link (`[label](url)`). Group 1 is the label. */
 const MARKDOWN_LINK = /\[([^\]\n]*)\]\((?:<[^>\n]*>|[^)\n]*)\)/g;
+
+/** A reference-style link (`[label][ref]`). Group 1 is the label. */
 const REFERENCE_LINK = /\[([^\]\n]+)\]\[[^\]\n]*\]/g;
+
+/** An autolink (`<https://...>`). */
 const AUTOLINK = /<(?:https?|ftp|mailto):[^>\s]*>/gi;
+
+/** A bare `http`, `ftp`, or `www` URL. */
 const BARE_URL = /\b(?:https?:\/\/|ftp:\/\/|www\.)\S+/gi;
+
+/** An HTML opening or closing tag. */
 const HTML_TAG = /<\/?[A-Za-z][^>\n]*>/g;
+
+/** Leading blockquote markers on a line. */
 const BLOCKQUOTE = /^[ \t]*(?:>[ \t]*)+/gm;
+
+/** A leading callout marker (`[!type]`) with an optional fold token. */
 const CALLOUT = /^[ \t]*\[![^\]\n]*\][+-]?[ \t]*/gm;
+
+/** A leading bullet or number, with an optional task checkbox. */
 const LIST_MARKER = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+(?:\[[^\]\n]\][ \t]+)?/gm;
+
+/** A trailing block id (`^id`). */
 const BLOCK_ID = /(?:^|[ \t])\^[A-Za-z0-9-]+[ \t]*$/gm;
+
+/** A table column pipe. */
 const TABLE_PIPE = /\|/g;
 
+/** The memoized platform segmenter; `null` when unavailable, `undefined` until first looked up. */
 let cachedSegmenter: WordSegmenter | null | undefined;
 
 /******************************************************************************
  * Functions
 ******************************************************************************/
 
-/** Counts the words in one whitespace-delimited chunk. */
+/**
+ * Counts the words in one whitespace-delimited chunk.
+ *
+ * @param chunk - The chunk of non-whitespace text.
+ * @param segmenter - The segmenter for non-spaced scripts, or `null` for the per-character fallback.
+ * @returns The number of words in the chunk.
+ */
 function countChunk(chunk: string, segmenter: WordSegmenter | null): number {
 	if (!LETTER_OR_NUMBER.test(chunk)) {
 		return 0;
@@ -100,7 +148,7 @@ function countChunk(chunk: string, segmenter: WordSegmenter | null): number {
 		}
 		return words;
 	}
-	// No segmenter: one word per non-spaced character, and one per run of
+	// Fallback: one word per non-spaced character, and one per run of
 	// anything else that contains a letter or number.
 	let words = 0;
 	for (const part of chunk.match(NON_SPACED_SPLIT) ?? []) {
@@ -114,9 +162,10 @@ function countChunk(chunk: string, segmenter: WordSegmenter | null): number {
 /**
  * Counts the words in `text`.
  *
- * `segmenter` defaults to the platform's `Intl.Segmenter`. Pass `null` to
- * force the per-character fallback for non-spaced scripts (used by tests
- * and by runtimes without `Intl.Segmenter`).
+ * @param text - The region text to count.
+ * @param options - Counting options; unspecified options use `DEFAULT_COUNT_OPTIONS`.
+ * @param segmenter - The word segmenter. Defaults to the platform's `Intl.Segmenter`; `null` forces the per-character fallback for non-spaced scripts.
+ * @returns The number of words.
  */
 export function countWords(
 	text: string,
@@ -133,8 +182,7 @@ export function countWords(
 		} else if (segment.kind === 'code' && resolved.includeCodeBlocks) {
 			parts.push(segment.text);
 		}
-		// `wordcount` blocks are this plugin's own output and are never
-		// counted, whatever includeCodeBlocks says.
+		// `wordcount` blocks are never counted.
 	}
 
 	let total = 0;
@@ -147,8 +195,9 @@ export function countWords(
 }
 
 /**
- * The platform's word segmenter, or null where `Intl.Segmenter` is missing
- * (older mobile WebViews).
+ * Gets the platform's word segmenter, memoized.
+ *
+ * @returns The segmenter, or `null` where `Intl.Segmenter` is unavailable.
  */
 function getDefaultSegmenter(): WordSegmenter | null {
 	if (cachedSegmenter === undefined) {
@@ -159,6 +208,14 @@ function getDefaultSegmenter(): WordSegmenter | null {
 	return cachedSegmenter;
 }
 
+/**
+ * Tells whether a line continues a footnote definition: it is indented, or it
+ * is blank and the next non-blank line is indented.
+ *
+ * @param lines - The lines of the text.
+ * @param index - The index of the line to test.
+ * @returns `true` if the line continues the footnote.
+ */
 function isFootnoteContinuation(lines: string[], index: number): boolean {
 	if (FOOTNOTE_CONTINUATION.test(lines[index])) {
 		return true;
@@ -174,8 +231,12 @@ function isFootnoteContinuation(lines: string[], index: number): boolean {
 }
 
 /**
- * Removes (or keeps, minus the `[^id]:` marker) footnote definitions,
- * including their indented continuation lines.
+ * Removes footnote definitions and their indented continuation lines. When
+ * `includeFootnotes` is set, their text is kept without the `[^id]:` marker.
+ *
+ * @param text - The prose text.
+ * @param includeFootnotes - Whether to keep footnote text.
+ * @returns The text with footnote definitions processed.
  */
 function processFootnoteDefinitions(text: string, includeFootnotes: boolean): string {
 	const lines = text.split('\n');
@@ -202,10 +263,14 @@ function processFootnoteDefinitions(text: string, includeFootnotes: boolean): st
 }
 
 /**
- * Splits text into prose and fenced-code segments. A fence closes on a line
- * of the same character at least as long as the opening one; an unclosed
- * fence runs to the end of the text. Fence lines themselves are dropped.
- * Fences may be indented at any depth, including inside list items.
+ * Splits text into prose and fenced-code segments. A fence closes on a line of
+ * the same character at least as long as the opening one; an unclosed fence
+ * runs to the end of the text. Fence lines are dropped, and fences may be
+ * indented at any depth. A fence whose language is `wordcount` yields a
+ * `wordcount` segment.
+ *
+ * @param text - The text, with LF line endings.
+ * @returns The segments in order.
  */
 function splitFences(text: string): TextSegment[] {
 	const lines = text.split('\n');
@@ -257,11 +322,23 @@ function splitFences(text: string): TextSegment[] {
 	return segments;
 }
 
+/**
+ * Removes leading frontmatter.
+ *
+ * @param text - The text, with LF line endings.
+ * @returns The text without frontmatter.
+ */
 function stripFrontmatter(text: string): string {
 	return text.replace(FRONTMATTER, '');
 }
 
-/** Removes Markdown machinery from a prose segment, leaving words. */
+/**
+ * Removes Markdown machinery from a prose segment, leaving words.
+ *
+ * @param text - The prose text.
+ * @param options - The resolved counting options.
+ * @returns The text with Markdown syntax removed or unwrapped.
+ */
 function stripProse(text: string, options: CountOptions): string {
 	const { includeFootnotes, includeEmbeds } = options;
 
@@ -274,7 +351,7 @@ function stripProse(text: string, options: CountOptions): string {
 		.replace(INLINE_FOOTNOTE, (_match, inner: string) => includeFootnotes ? ` ${ inner } ` : ' ')
 		.replace(FOOTNOTE_REFERENCE, ' ');
 
-	// Embeds are replaced before links.
+	// Embeds are stripped before links are unwrapped.
 	result = result
 		.replace(EMBED_WIKILINK, (_match, inner: string) => includeEmbeds ? ` ${ wikilinkText(inner) } ` : ' ')
 		.replace(EMBED_IMAGE, (_match, alt: string) => includeEmbeds ? ` ${ alt } ` : ' ')
@@ -294,8 +371,11 @@ function stripProse(text: string, options: CountOptions): string {
 }
 
 /**
- * The text a wikilink displays: its alias if it has one, otherwise its
+ * Gets the text a wikilink displays: its alias if it has one, otherwise its
  * target, with heading and block separators treated as word breaks.
+ *
+ * @param inner - The text between the wikilink brackets.
+ * @returns The displayed text.
  */
 function wikilinkText(inner: string): string {
 	const pipe = inner.indexOf('|');

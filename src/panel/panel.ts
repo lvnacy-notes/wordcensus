@@ -1,5 +1,5 @@
 /**
- * Draws the sidebar panel: region summary, mode selector, clock, mode data
+ * Draws the sidebar panel: region summary, mode selector, clock, mode data,
  * and controls. It renders a `PanelModel` and reports what the user does
  * through `PanelActions`; it holds no state of its own. Elements are built
  * with Obsidian's global `createEl`; everything else is standard DOM.
@@ -19,6 +19,7 @@ import type {
  * Declared Variables and Constants
 ******************************************************************************/
 
+/** The label shown on each timer mode button. */
 const MODE_LABELS: Readonly<Record<TimerMode, string>> = {
 	countdown: 'Countdown',
 	session: 'Session',
@@ -29,13 +30,26 @@ const MODE_LABELS: Readonly<Record<TimerMode, string>> = {
  * Functions
 ******************************************************************************/
 
+/**
+ * Creates a non-submitting button.
+ *
+ * @param label - The button text.
+ * @param className - The button's class name.
+ * @returns The button element.
+ */
 function buildButton(label: string, className: string): HTMLButtonElement {
 	const button = element('button', className, label);
 	button.type = 'button';
 	return button;
 }
 
-/** Builds the panel inside `host`. */
+/**
+ * Builds the panel inside `host`.
+ *
+ * @param host - The element to build into.
+ * @param actions - The callbacks that receive the user's actions.
+ * @returns A handle that updates the panel from a model and removes it.
+ */
 export function createPanel(host: HTMLElement, actions: PanelActions): Panel {
 	const root = element('div', 'wordcensus-panel');
 
@@ -59,7 +73,11 @@ export function createPanel(host: HTMLElement, actions: PanelActions): Panel {
 	const rows = root.appendChild(element('div', 'wordcensus-rows'));
 
 	const durationLabel = root.appendChild(element('label', 'wordcensus-duration'));
-	durationLabel.appendChild(element('span', 'wordcensus-duration-label', 'Countdown minutes'));
+	durationLabel.appendChild(element(
+		'span',
+		'wordcensus-duration-label',
+		'Countdown minutes'
+	));
 	const durationInput = durationLabel.appendChild(element('input', 'wordcensus-duration-input'));
 	durationInput.type = 'number';
 	durationInput.min = String(MIN_COUNTDOWN_MINUTES);
@@ -81,43 +99,62 @@ export function createPanel(host: HTMLElement, actions: PanelActions): Panel {
 
 	host.appendChild(root);
 
-	return {
-		destroy(): void {
-			root.remove();
-		},
-		update(model: PanelModel): void {
-			headline.textContent = model.summary.headline;
-			detail.textContent = model.summary.detail;
-
-			for (const [mode, button] of modeButtons) {
-				const selected = mode === model.mode;
-				button.setAttribute('aria-pressed', String(selected));
-				button.classList.toggle('is-active', selected);
-			}
-
-			clock.update(model.clock);
-
-			rows.replaceChildren(...model.rows.map((row) => {
-				const line = element('div', 'wordcensus-row');
-				line.appendChild(element('span', 'wordcensus-row-label', row.label));
-				line.appendChild(element('span', 'wordcensus-row-value', row.value));
-				return line;
-			}));
-
-			durationLabel.hidden = model.durationMinutes === null;
-			durationInput.disabled = !model.durationEditable;
-			// Compared in the input's own document, which is a popout window's when the panel is popped out.
-			const typing = durationInput.ownerDocument.activeElement === durationInput;
-			if (model.durationMinutes !== null && !typing) {
-				durationInput.value = String(model.durationMinutes);
-			}
-
-			toggle.textContent = model.running ? 'Pause' : 'Start';
-			toggle.disabled = model.startDisabled && !model.running;
-		}
+	/** Removes the panel from the host. */
+	const destroy = (): void => {
+		root.remove();
 	};
+
+	/** Renders a model into the panel's elements. */
+	const update = (model: PanelModel): void => {
+		headline.textContent = model.summary.headline;
+		detail.textContent = model.summary.detail;
+
+		for (const [mode, button] of modeButtons) {
+			const selected = mode === model.mode;
+			button.setAttribute('aria-pressed', String(selected));
+			button.classList.toggle('is-active', selected);
+		}
+
+		clock.update(model.clock);
+
+		rows.replaceChildren(...model.rows.map((row) => {
+			const line = element('div', 'wordcensus-row');
+			line.appendChild(element(
+				'span',
+				'wordcensus-row-label',
+				row.label
+			));
+			line.appendChild(element(
+				'span',
+				'wordcensus-row-value',
+				row.value
+			));
+			return line;
+		}));
+
+		durationLabel.hidden = model.durationMinutes === null;
+		durationInput.disabled = !model.durationEditable;
+		// Focus is checked in the input's own document, a popout window's when popped out.
+		const typing = durationInput.ownerDocument.activeElement === durationInput;
+		if (model.durationMinutes !== null && !typing) {
+			durationInput.value = String(model.durationMinutes);
+		}
+
+		toggle.textContent = model.running ? 'Pause' : 'Start';
+		toggle.disabled = model.startDisabled && !model.running;
+	};
+
+	return { destroy, update };
 }
 
+/**
+ * Creates an HTML element with a class name and text.
+ *
+ * @param tag - The tag name.
+ * @param className - The element's class name.
+ * @param text - The element's text content.
+ * @returns The new element.
+ */
 function element<K extends keyof HTMLElementTagNameMap>(
 	tag: K,
 	className: string,

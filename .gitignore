@@ -16,3 +16,6 @@ data.json
 .DS_Store
 .idea/
 .vscode/
+
+# test build
+.obsidian/plugins/wordcensus

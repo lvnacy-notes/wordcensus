@@ -5,9 +5,25 @@ import { readNoteText } from './note-source';
 import { WordCountBlock } from './WordCountBlock';
 import type { NoteWatcher, Store } from '../types';
 
+/******************************************************************************
+ * Declared Variables and Constants
+******************************************************************************/
+
+/** The code block language that marks a word count block. */
 export const BLOCK_LANGUAGE = 'wordcount';
 
-/** Builds the callback that renders each `wordcount` code block. */
+/******************************************************************************
+ * Functions
+******************************************************************************/
+
+/**
+ * Builds the callback that renders each `wordcount` code block.
+ *
+ * @param app - The Obsidian application instance.
+ * @param store - The settings store supplying the counting options.
+ * @param watcher - The shared note watcher.
+ * @returns The Markdown code block processor.
+ */
 export function buildProcessor(
 	app: App,
 	store: Store,
@@ -26,7 +42,7 @@ export function buildProcessor(
 			options: parseBlockSource(source),
 			readText: () => readNoteText(app, ctx.sourcePath),
 			store,
-			// A block counts the note it sits in, so only that note's properties matter.
+			// Watches only the note the block sits in.
 			watchNotes: (handler) => watcher.watch(handler, { paths: () => [ctx.sourcePath] })
 		});
 		ctx.addChild(new WordCountBlock(el, controller));

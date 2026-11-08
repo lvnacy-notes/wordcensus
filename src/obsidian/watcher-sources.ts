@@ -1,13 +1,16 @@
-/**
- * The real Obsidian events behind the shared note watcher. The only module
- * that registers workspace, vault and metadata listeners for it.
- */
+/** Connects Obsidian's workspace, vault, and metadata events to the shared note watcher. */
 
-import { debounce } from 'obsidian';
-import type { App } from 'obsidian';
+import { debounce, type App } from 'obsidian';
 import type { Store, WatcherSources } from '../types';
 
-/** Connects a note watcher to `app`'s events and to the store's setting changes. */
+/**
+ * Connects a note watcher to `app`'s events and to the store's setting
+ * changes. Each `on*` source returns a function that removes its listener.
+ *
+ * @param app - The Obsidian application instance.
+ * @param store - The settings store.
+ * @returns The event sources for the watcher.
+ */
 export function buildWatcherSources(app: App, store: Store): WatcherSources {
 	return {
 		activePath: () => app.workspace.getActiveFile()?.path ?? null,
@@ -17,10 +20,7 @@ export function buildWatcherSources(app: App, store: Store): WatcherSources {
 			true
 		),
 		onActive: (handler) => {
-			const refs = [
-				app.workspace.on('active-leaf-change', handler),
-				app.workspace.on('file-open', handler)
-			];
+			const refs = [app.workspace.on('active-leaf-change', handler), app.workspace.on('file-open', handler)];
 			return () => {
 				for (const ref of refs) {
 					app.workspace.offref(ref);

@@ -1,6 +1,6 @@
 {
 	"name": "wordcensus",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "Count words only inside a region of a note: between sentinel comments or under a heading.",
 	"main": "dist/main.js",
 	"type": "module",
@@ -10,16 +10,13 @@
 	},
 	"scripts": {
 		"dev": "node esbuild.config.js",
-		"dev:mobile": "node esbuild.config.js --mobile",
 		"typecheck": "tsc --noEmit --skipLibCheck",
 		"typecheck:fast": "tsgo --noEmit --skipLibCheck",
 		"lint": "eslint .",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage",
-		"test:ratchet": "vitest run --coverage && node .coverage/check-coverage-ratchet.js",
-		"test:watch": "vitest",
-		"test:ui": "vitest --ui",
-		"build": "pnpm run typecheck && node esbuild.config.js production",
+		"test:ratchet": "pnpm test:coverage && node .coverage/check-coverage-ratchet.js",
+		"build": "pnpm typecheck && node esbuild.config.js production",
 		"version": "node version-bump.js && git add manifest.json versions.json"
 	},
 	"keywords": [],

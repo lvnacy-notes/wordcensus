@@ -8,9 +8,14 @@ import { extractHeadingRegion, extractRegion } from './region';
 import type { NoteCount, WordCensusSettings } from '../types';
 
 /**
- * Counts the words under `heading`, whatever markers or configured heading
- * the note has. A heading that cannot be found gives zero words with
+ * Counts the words under `heading`, regardless of any markers or configured
+ * heading in the note. A heading that is not found gives zero words with
  * `headingFound: false`.
+ *
+ * @param text - The note text.
+ * @param settings - The plugin settings supplying the counting options.
+ * @param heading - The heading to count under.
+ * @returns The count, in `heading` mode.
  */
 export function countHeading(
 	text: string,
@@ -29,8 +34,13 @@ export function countHeading(
 
 /**
  * Counts `text` using the counting options in `settings`. A non-blank
- * `headingOverride` replaces the configured heading for this note; it has
- * no effect when the note has sentinel markers.
+ * `headingOverride` replaces the configured heading for this note; it has no
+ * effect when the note has sentinel markers.
+ *
+ * @param text - The note text.
+ * @param settings - The plugin settings supplying the heading and counting options.
+ * @param headingOverride - A per-note heading, or `null` to use the configured one.
+ * @returns The count, in `sentinel`, `heading`, or `note` mode.
  */
 export function countNote(
 	text: string,

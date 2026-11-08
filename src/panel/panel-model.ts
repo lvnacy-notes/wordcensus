@@ -1,5 +1,5 @@
 /**
- * Turns the timer, the active note and the session's bound note into
+ * Turns the timer, the active note, and the session's bound note into
  * everything the sidebar panel shows. Pure: the same input always gives the
  * same model.
  */
@@ -28,12 +28,31 @@ import type {
  * Interfaces and Types
 ******************************************************************************/
 
+/** The model fields shared by every timer mode. */
 type BaseModel = Pick<PanelModel, 'mode' | 'running' | 'summary'>;
 
 /******************************************************************************
  * Functions
 ******************************************************************************/
 
+/**
+ * Gets what to show for the session's note when its count is unavailable.
+ *
+ * @param binding - The session's note binding, or `null` for a session with none.
+ * @returns The file name from the binding's path, or "Not bound".
+ */
+function boundNoteName(binding: SessionBinding | null): string {
+	return binding === null ? 'Not bound' : fileTitle(binding.path);
+}
+
+/**
+ * Builds the model for countdown mode: time remaining, a wedge for the
+ * fraction left, and an editable duration while stopped.
+ *
+ * @param base - The fields shared by every mode.
+ * @param input - The panel input.
+ * @returns The countdown model.
+ */
 function buildCountdownModel(base: BaseModel, input: PanelInput): PanelModel {
 	const { now, timer } = input;
 	const { countdown } = timer;
@@ -44,60 +63,31 @@ function buildCountdownModel(base: BaseModel, input: PanelInput): PanelModel {
 		clock,
 		durationEditable: !base.running,
 		durationMinutes: Math.max(1, Math.round(countdown.durationMs / MINUTE_MS)),
-		rows: [
-			{ label: 'Remaining', value: formatDuration(remaining, 'ceil') },
-			{ label: 'Duration', value: formatDuration(countdown.durationMs) }
-		],
+		rows: [{ label: 'Remaining', value: formatDuration(remaining, 'ceil') }, { label: 'Duration', value: formatDuration(countdown.durationMs) }],
 		startDisabled: isCountdownFinished(countdown)
 	};
 }
 
 /**
- * Builds the model for the selected timer mode.
+ * Builds the model for a session that ended because its note was deleted. The
+ * clock stays at its final time, the figures are the ones saved when it ended,
+ * and Start is disabled until a reset.
  *
- * - Stopwatch and session hands show elapsed time.
- * - Countdown hands show time remaining, with a wedge for the fraction left.
- * - Session statistics are measured against the bound note's current count.
- */
-export function buildPanelModel(input: PanelInput): PanelModel {
-	const { now, timer } = input;
-	const run = selectedRun(timer);
-	const base = {
-		mode: timer.mode,
-		running: isRunning(run),
-		summary: buildSummary(input.active?.count ?? null)
-	};
-
-	switch (timer.mode) {
-		case 'stopwatch':
-			return {
-				...base,
-				clock: { ms: elapsedMs(timer.stopwatch, now), wedge: null },
-				durationEditable: false,
-				durationMinutes: null,
-				rows: [
-					{ label: 'Elapsed', value: formatDuration(elapsedMs(timer.stopwatch, now)) }
-				],
-				startDisabled: false
-			};
-		case 'countdown':
-			return buildCountdownModel(base, input);
-		case 'session':
-			return buildSessionModel(base, input);
-	}
-}
-
-/**
- * A session that ended because its note was deleted: the clock stays at its
- * final time, the figures are the ones saved when it ended, and Start waits
- * for a reset.
+ * @param base - The fields shared by every mode.
+ * @param input - The panel input.
+ * @param result - The saved result of the ended session.
+ * @returns The ended-session model.
  */
 function buildEndedSessionModel(
 	base: BaseModel,
 	input: PanelInput,
 	result: SessionResult
 ): PanelModel {
-	const { active, now, timer } = input;
+	const {
+		active,
+		now,
+		timer
+	} = input;
 	const elapsed = elapsedMs(timer.session, now);
 	return {
 		...base,
@@ -115,6 +105,51 @@ function buildEndedSessionModel(
 	};
 }
 
+/**
+ * Builds the model for the selected timer mode.
+ *
+ * - Stopwatch and session hands show elapsed time.
+ * - Countdown hands show time remaining, with a wedge for the fraction left.
+ * - Session statistics are measured against the bound note's current count.
+ *
+ * @param input - The timer, the active and bound notes, and the current time.
+ * @returns Everything the panel shows.
+ */
+export function buildPanelModel(input: PanelInput): PanelModel {
+	const { now, timer } = input;
+	const run = selectedRun(timer);
+	const base = {
+		mode: timer.mode,
+		running: isRunning(run),
+		summary: buildSummary(input.active?.count ?? null)
+	};
+
+	switch (timer.mode) {
+		case 'stopwatch':
+			return {
+				...base,
+				clock: { ms: elapsedMs(timer.stopwatch, now), wedge: null },
+				durationEditable: false,
+				durationMinutes: null,
+				rows: [{ label: 'Elapsed', value: formatDuration(elapsedMs(timer.stopwatch, now)) }],
+				startDisabled: false
+			};
+		case 'countdown':
+			return buildCountdownModel(base, input);
+		case 'session':
+			return buildSessionModel(base, input);
+	}
+}
+
+/**
+ * Builds the model for session mode. An ended session uses its saved result;
+ * otherwise statistics are measured against the bound note's current count,
+ * where a `null` count means the note can't be measured, not zero words.
+ *
+ * @param base - The fields shared by every mode.
+ * @param input - The panel input.
+ * @returns The session model.
+ */
 function buildSessionModel(base: BaseModel, input: PanelInput): PanelModel {
 	const {
 		active,
@@ -130,8 +165,6 @@ function buildSessionModel(base: BaseModel, input: PanelInput): PanelModel {
 			result
 		);
 	}
-	// A null count means "can't measure", not zero words: measuring against zero
-	// would report every word of the baseline as deleted.
 	const stats = sessionStats(
 		timer,
 		now,
@@ -155,23 +188,33 @@ function buildSessionModel(base: BaseModel, input: PanelInput): PanelModel {
 }
 
 /**
- * What to show for the session's note when its count isn't available: the
- * file name from the binding's path, or "Not bound" for a session with none.
+ * Gets a note's name as Obsidian shows it: the file name without its folders
+ * or `.md`.
+ *
+ * @param path - The note's vault path.
+ * @returns The note's title.
  */
-function boundNoteName(binding: SessionBinding | null): string {
-	return binding === null ? 'Not bound' : fileTitle(binding.path);
-}
-
-/** A note's name as Obsidian shows it: the file name without its folders or `.md`. */
 function fileTitle(path: string): string {
 	const fileName = path.split('/').pop() ?? path;
 	return fileName.replace(/\.md$/, '');
 }
 
+/**
+ * Formats a words-per-minute rate.
+ *
+ * @param rate - The rate, or `null` when it is unavailable.
+ * @returns The rounded rate, or an em dash when unavailable.
+ */
 function formatRate(rate: number | null): string {
 	return rate === null ? '—' : String(Math.round(rate));
 }
 
+/**
+ * Formats a words-written figure with an explicit sign for gains.
+ *
+ * @param written - The words written, or `null` when unavailable.
+ * @returns For example `+12`, `0`, or `-3`, or an em dash when unavailable.
+ */
 function formatWordsWritten(written: number | null): string {
 	if (written === null) {
 		return '—';
