@@ -147,7 +147,11 @@ export function createTimerDriver(store: Store, environment: DriverEnvironment):
 		},
 		/** Follows the session's note from `oldPath` to `newPath`. */
 		rebind(oldPath: string, newPath: string): void {
-			commit(rebindSession(store.timer, oldPath, newPath));
+			commit(rebindSession(
+				store.timer,
+				oldPath,
+				newPath
+			));
 		},
 		/** Resets the selected mode. */
 		reset(): void {
@@ -163,7 +167,11 @@ export function createTimerDriver(store: Store, environment: DriverEnvironment):
 		},
 		/** Starts or resumes the selected mode, binding a session to `binding`. */
 		start(binding?: SessionBinding): void {
-			commit(startTimer(store.timer, environment.now(), binding));
+			commit(startTimer(
+				store.timer,
+				environment.now(),
+				binding
+			));
 		},
 		/** Calls `listener` after each change; returns a function that unsubscribes it. */
 		subscribe(listener: () => void): () => void {

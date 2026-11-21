@@ -126,13 +126,11 @@ export async function startRuntime(plugin: Plugin): Promise<Runtime> {
 	const watcher = createNoteWatcher(buildWatcherSources(plugin.app, store));
 	// Remembers the session note's last count.
 	const lastCounts = createLastCounts(() => store.timer.session.binding?.path ?? null);
-	const readObserved = async (path?: string): Promise<NoteInfo | null> => lastCounts.observe(
-		await readNote(
-			plugin.app,
-			store,
-			path
-		)
-	);
+	const readObserved = async (path?: string): Promise<NoteInfo | null> => lastCounts.observe(await readNote(
+		plugin.app,
+		store,
+		path
+	));
 	watcher.onMove((oldPath, newPath) => {
 		driver.rebind(oldPath, newPath);
 	});
@@ -165,14 +163,12 @@ export async function startRuntime(plugin: Plugin): Promise<Runtime> {
 		store
 	));
 
-	return {
-		stop: () => {
-			driver.end();
-			statusBar?.stop();
-			watcher.dispose();
-			return store.save();
-		}
-	};
+	return {stop: () => {
+		driver.end();
+		statusBar?.stop();
+		watcher.dispose();
+		return store.save();
+	} };
 }
 
 /**

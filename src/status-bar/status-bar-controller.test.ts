@@ -25,14 +25,11 @@ async function buildHarness(initial: unknown = undefined) {
 	const store = createStore(persistence, () => 0);
 	await store.load();
 	const shown: (string | null)[] = [];
-	const display: StatusBarDisplay = {
-		hide: () => {
-			shown.push(null);
-		},
-		show: (text) => {
-			shown.push(text);
-		}
-	};
+	const display: StatusBarDisplay = { hide: () => {
+		shown.push(null);
+	}, show: (text) => {
+		shown.push(text);
+	} };
 	let note: NoteInfo | null = NOTE;
 	let changed: () => void = () => undefined;
 	let watching = 0;

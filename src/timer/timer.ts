@@ -136,19 +136,16 @@ export function endSession(
 		now,
 		currentWords
 	);
-	return {
-		...state,
-		session: {
-			accumulatedMs: stats.elapsedMs,
-			startedAt: null,
-			binding: null,
-			result: {
-				path: binding.path,
-				wordsPerMinute: stats.wordsPerMinute,
-				wordsWritten: stats.wordsWritten
-			}
+	return {...state, session: {
+		accumulatedMs: stats.elapsedMs,
+		startedAt: null,
+		binding: null,
+		result: {
+			path: binding.path,
+			wordsPerMinute: stats.wordsPerMinute,
+			wordsWritten: stats.wordsWritten
 		}
-	};
+	}};
 }
 
 /**
@@ -333,24 +330,18 @@ export function resetTimer(state: TimerState): TimerState {
 		case 'stopwatch':
 			return { ...state, stopwatch: { accumulatedMs: 0, startedAt: null } };
 		case 'countdown':
-			return {
-				...state,
-				countdown: {
-					...state.countdown,
-					accumulatedMs: 0,
-					startedAt: null
-				}
-			};
+			return {...state, countdown: {
+				...state.countdown,
+				accumulatedMs: 0,
+				startedAt: null
+			}};
 		case 'session':
-			return {
-				...state,
-				session: {
-					accumulatedMs: 0,
-					startedAt: null,
-					binding: null,
-					result: null
-				}
-			};
+			return {...state, session: {
+				accumulatedMs: 0,
+				startedAt: null,
+				binding: null,
+				result: null
+			}};
 	}
 }
 
@@ -534,14 +525,11 @@ export function setCountdownDuration(state: TimerState, durationMs: number): Tim
 	if (duration === null || isRunning(state.countdown)) {
 		return state;
 	}
-	return {
-		...state,
-		countdown: {
-			...state.countdown,
-			durationMs: duration,
-			accumulatedMs: 0
-		}
-	};
+	return {...state, countdown: {
+		...state.countdown,
+		durationMs: duration,
+		accumulatedMs: 0
+	}};
 }
 
 /**
@@ -595,12 +583,9 @@ export function tickTimer(state: TimerState, now: number): TimerState {
 	if (countdown.startedAt === null || elapsedMs(countdown, now) < countdown.durationMs) {
 		return state;
 	}
-	return {
-		...state,
-		countdown: {
-			...countdown,
-			accumulatedMs: countdown.durationMs,
-			startedAt: null
-		}
-	};
+	return {...state, countdown: {
+		...countdown,
+		accumulatedMs: countdown.durationMs,
+		startedAt: null
+	}};
 }

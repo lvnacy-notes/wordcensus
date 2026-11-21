@@ -29,19 +29,31 @@ describe('buildSummary', () => {
 	});
 
 	it('counts the marker regions', () => {
-		const summary = buildSummary(buildCount({ mode: 'sentinel', pairs: 2, words: 40 }));
+		const summary = buildSummary(buildCount({
+			mode: 'sentinel',
+			pairs: 2,
+			words: 40
+		}));
 
 		expect(summary).toEqual({ detail: 'Between markers (2 regions)', headline: '40 words' });
 	});
 
 	it('names a single marker region in the singular', () => {
-		const summary = buildSummary(buildCount({ mode: 'sentinel', pairs: 1, words: 5 }));
+		const summary = buildSummary(buildCount({
+			mode: 'sentinel',
+			pairs: 1,
+			words: 5
+		}));
 
 		expect(summary).toEqual({ detail: 'Between markers (1 region)', headline: '5 words' });
 	});
 
 	it('names the heading', () => {
-		const summary = buildSummary(buildCount({ heading: 'Draft', mode: 'heading', words: 9 }));
+		const summary = buildSummary(buildCount({
+			heading: 'Draft',
+			mode: 'heading',
+			words: 9
+		}));
 
 		expect(summary).toEqual({ detail: 'Under “Draft”', headline: '9 words' });
 	});
@@ -54,9 +66,6 @@ describe('buildSummary', () => {
 			words: 0
 		}));
 
-		expect(summary).toEqual({
-			detail: 'No heading “Draft” in this note',
-			headline: 'Heading not found'
-		});
+		expect(summary).toEqual({ detail: 'No heading “Draft” in this note', headline: 'Heading not found' });
 	});
 });

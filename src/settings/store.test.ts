@@ -48,10 +48,7 @@ describe('createStore', () => {
 		});
 
 		it('writes the timer too when keeping timer state is on', async () => {
-			const { persistence, saved } = fakePersistence({
-				keepTimerState: true,
-				timer: { stopwatch: { accumulatedMs: 5000, startedAt: null } }
-			});
+			const { persistence, saved } = fakePersistence({ keepTimerState: true, timer: { stopwatch: { accumulatedMs: 5000, startedAt: null } } });
 			const store = createStore(persistence, () => T0);
 			await store.load();
 

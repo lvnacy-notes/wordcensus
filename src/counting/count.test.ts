@@ -9,11 +9,7 @@ import type { WordSegmenter } from '../types';
 const LETTER = /\p{L}/u;
 
 /** Treats every letter as its own word, so non-spaced-script tests are deterministic. */
-const characterSegmenter: WordSegmenter = {
-	segment(input: string): Iterable<{ isWordLike?: boolean }> {
-		return Array.from(input).map((character) => ({ isWordLike: LETTER.test(character) }));
-	}
-};
+const characterSegmenter: WordSegmenter = { segment(input: string): Iterable<{ isWordLike?: boolean }> { return Array.from(input).map((character) => ({ isWordLike: LETTER.test(character) })); } };
 
 describe('countWords', () => {
 	describe('plain text', () => {
@@ -70,7 +66,11 @@ describe('countWords', () => {
 		it('segments them with the given segmenter and counts spaced words by whitespace', () => {
 			const text = 'hello 世界';
 
-			const result = countWords(text, {}, characterSegmenter);
+			const result = countWords(
+				text,
+				{},
+				characterSegmenter
+			);
 
 			expect(result).toBe(3);
 		});
@@ -78,7 +78,11 @@ describe('countWords', () => {
 		it('falls back to one word per character when there is no segmenter', () => {
 			const text = '你好世界';
 
-			const result = countWords(text, {}, null);
+			const result = countWords(
+				text,
+				{},
+				null
+			);
 
 			expect(result).toBe(4);
 		});
@@ -86,7 +90,11 @@ describe('countWords', () => {
 		it('counts a run of spaced letters as one word inside a mixed chunk without a segmenter', () => {
 			const text = 'hello世界';
 
-			const result = countWords(text, {}, null);
+			const result = countWords(
+				text,
+				{},
+				null
+			);
 
 			expect(result).toBe(3);
 		});

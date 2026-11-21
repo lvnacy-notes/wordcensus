@@ -4,8 +4,16 @@
 
 export type RegionResult =
 	| { mode: 'note'; text: string }
-	| { mode: 'sentinel'; text: string; pairs: number }
-	| { mode: 'heading'; text: string; heading: string; found: boolean };
+	| {
+		mode: 'sentinel';
+		text: string;
+		pairs: number
+	} | {
+		mode: 'heading';
+		text: string;
+		heading: string;
+		found: boolean
+	};
 
 export type TimerMode = 'stopwatch' | 'countdown' | 'session';
 

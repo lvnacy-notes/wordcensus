@@ -175,10 +175,7 @@ describe('createTimerDriver', () => {
 		});
 
 		it('does nothing, and saves nothing, when another note is moved', async () => {
-			const {
-				driver,
-				saved
-			} = await buildHarness({ keepTimerState: true });
+			const { driver, saved } = await buildHarness({ keepTimerState: true });
 			driver.selectMode('session');
 			driver.start(NOTE);
 			const savesBefore = saved.length;
@@ -203,12 +200,14 @@ describe('createTimerDriver', () => {
 			expect(store.timer.session).toEqual({
 				accumulatedMs: 2 * ONE_MINUTE,
 				binding: null,
-				result: { path: 'Drafts/Draft.md', wordsPerMinute: 30, wordsWritten: 60 },
+				result: {
+					path: 'Drafts/Draft.md',
+					wordsPerMinute: 30,
+					wordsWritten: 60
+				},
 				startedAt: null
 			});
-			expect(environment.notices).toEqual([
-				'Word Census: the session\'s note was deleted, so the session has ended.'
-			]);
+			expect(environment.notices).toEqual(['Word Census: the session\'s note was deleted, so the session has ended.']);
 			expect(environment.cancelled).toBe(1);
 		});
 

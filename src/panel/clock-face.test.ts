@@ -47,8 +47,16 @@ describe('handAngles', () => {
 	});
 
 	it('reads negative and non-finite values as zero', () => {
-		expect(handAngles(-5000)).toEqual({ hour: 0, minute: 0, second: 0 });
-		expect(handAngles(Number.NaN)).toEqual({ hour: 0, minute: 0, second: 0 });
+		expect(handAngles(-5000)).toEqual({
+			hour: 0,
+			minute: 0,
+			second: 0
+		});
+		expect(handAngles(Number.NaN)).toEqual({
+			hour: 0,
+			minute: 0,
+			second: 0
+		});
 	});
 });
 
@@ -75,7 +83,11 @@ describe('createClockFace', () => {
 
 		face.update({ ms: 15_000, wedge: null });
 
-		expect(attribute(host, '.wordcensus-clock-hand-second', 'transform')).toBe('rotate(90 50 50)');
+		expect(attribute(
+			host,
+			'.wordcensus-clock-hand-second',
+			'transform'
+		)).toBe('rotate(90 50 50)');
 	});
 
 	it('builds the face in the document of its host', () => {
@@ -99,9 +111,17 @@ describe('createClockFace', () => {
 		const face = createClockFace(host);
 
 		face.update({ ms: 0, wedge: 0.25 });
-		const withWedge = attribute(host, '.wordcensus-clock-wedge', 'd');
+		const withWedge = attribute(
+			host,
+			'.wordcensus-clock-wedge',
+			'd'
+		);
 		face.update({ ms: 0, wedge: null });
-		const withoutWedge = attribute(host, '.wordcensus-clock-wedge', 'd');
+		const withoutWedge = attribute(
+			host,
+			'.wordcensus-clock-wedge',
+			'd'
+		);
 
 		expect(withWedge).toBe('M 50 50 L 50 6 A 44 44 0 0 1 94 50 Z');
 		expect(withoutWedge).toBe('');
