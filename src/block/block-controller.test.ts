@@ -6,10 +6,7 @@ import {
 } from 'vitest';
 import { createBlockController } from './block-controller';
 import { createStore } from '../settings/store';
-import {
-	buildSettings,
-	fakePersistence
-} from '../test/fakes';
+import { buildSettings, fakePersistence } from '../test/fakes';
 import type {
 	BlockController,
 	BlockOptions,
@@ -63,10 +60,7 @@ async function buildSetup(options: BlockOptions = { heading: null }): Promise<Se
 	const store = createStore(persistence, () => 0);
 	await store.load();
 
-	const state: SetupState = {
-		gate: null,
-		note: buildNote()
-	};
+	const state: SetupState = { gate: null, note: buildNote() };
 	const watchers: Watcher[] = [];
 	const controller = createBlockController({
 		options,

@@ -76,7 +76,11 @@ describe('elapsedMs', () => {
 
 describe('remainingMs', () => {
 	it('counts down from the duration', () => {
-		const countdown: CountdownRun = { accumulatedMs: 0, startedAt: T0, durationMs: 10 * SECOND };
+		const countdown: CountdownRun = {
+			accumulatedMs: 0,
+			startedAt: T0,
+			durationMs: 10 * SECOND
+		};
 
 		const result = remainingMs(countdown, T0 + 4 * SECOND);
 
@@ -84,7 +88,11 @@ describe('remainingMs', () => {
 	});
 
 	it('never goes below zero', () => {
-		const countdown: CountdownRun = { accumulatedMs: 0, startedAt: T0, durationMs: 10 * SECOND };
+		const countdown: CountdownRun = {
+			accumulatedMs: 0,
+			startedAt: T0,
+			durationMs: 10 * SECOND
+		};
 
 		const result = remainingMs(countdown, T0 + 30 * SECOND);
 
@@ -94,7 +102,11 @@ describe('remainingMs', () => {
 
 describe('isCountdownFinished', () => {
 	it('is false while the countdown is running, even past zero', () => {
-		const countdown: CountdownRun = { accumulatedMs: 0, startedAt: T0, durationMs: 10 * SECOND };
+		const countdown: CountdownRun = {
+			accumulatedMs: 0,
+			startedAt: T0,
+			durationMs: 10 * SECOND
+		};
 
 		const result = isCountdownFinished(countdown);
 
@@ -102,7 +114,11 @@ describe('isCountdownFinished', () => {
 	});
 
 	it('is false when it was paused with time left', () => {
-		const countdown: CountdownRun = { accumulatedMs: 4 * SECOND, startedAt: null, durationMs: 10 * SECOND };
+		const countdown: CountdownRun = {
+			accumulatedMs: 4 * SECOND,
+			startedAt: null,
+			durationMs: 10 * SECOND
+		};
 
 		const result = isCountdownFinished(countdown);
 
@@ -110,7 +126,11 @@ describe('isCountdownFinished', () => {
 	});
 
 	it('is true once it has stopped at its duration', () => {
-		const countdown: CountdownRun = { accumulatedMs: 10 * SECOND, startedAt: null, durationMs: 10 * SECOND };
+		const countdown: CountdownRun = {
+			accumulatedMs: 10 * SECOND,
+			startedAt: null,
+			durationMs: 10 * SECOND
+		};
 
 		const result = isCountdownFinished(countdown);
 
@@ -164,17 +184,29 @@ describe('startTimer', () => {
 	it('binds a session to the note it starts in', () => {
 		const state = selecting('session');
 
-		const result = startTimer(state, T0, NOTE);
+		const result = startTimer(
+			state,
+			T0,
+			NOTE
+		);
 
 		expect(result.session.binding).toEqual(NOTE);
 		expect(result.session.startedAt).toBe(T0);
 	});
 
 	it('keeps the existing binding when a session is resumed', () => {
-		const paused = pauseTimer(startTimer(selecting('session'), T0, NOTE), T0 + SECOND);
+		const paused = pauseTimer(startTimer(
+			selecting('session'),
+			T0,
+			NOTE
+		), T0 + SECOND);
 		const other: SessionBinding = { path: 'Other.md', baselineWords: 7 };
 
-		const result = startTimer(paused, T0 + MINUTE, other);
+		const result = startTimer(
+			paused,
+			T0 + MINUTE,
+			other
+		);
 
 		expect(result.session.binding).toEqual(NOTE);
 	});
@@ -219,7 +251,11 @@ describe('pauseTimer', () => {
 
 		const result = pauseTimer(running, T0 + 30 * SECOND);
 
-		expect(result.countdown).toEqual({ accumulatedMs: 10 * SECOND, startedAt: null, durationMs: 10 * SECOND });
+		expect(result.countdown).toEqual({
+			accumulatedMs: 10 * SECOND,
+			startedAt: null,
+			durationMs: 10 * SECOND
+		});
 	});
 });
 
@@ -280,20 +316,37 @@ describe('resetTimer', () => {
 
 		const result = resetTimer(running);
 
-		expect(result.countdown).toEqual({ accumulatedMs: 0, startedAt: null, durationMs: 10 * SECOND });
+		expect(result.countdown).toEqual({
+			accumulatedMs: 0,
+			startedAt: null,
+			durationMs: 10 * SECOND
+		});
 	});
 
 	it('clears the session and forgets its note', () => {
-		const running = startTimer(selecting('session'), T0, NOTE);
+		const running = startTimer(
+			selecting('session'),
+			T0,
+			NOTE
+		);
 
 		const result = resetTimer(running);
 
-		expect(result.session).toEqual({ accumulatedMs: 0, startedAt: null, binding: null, result: null });
+		expect(result.session).toEqual({
+			accumulatedMs: 0,
+			startedAt: null,
+			binding: null,
+			result: null
+		});
 	});
 
 	it('clears the result of a session that ended', () => {
 		const ended = endSession(
-			startTimer(selecting('session'), T0, NOTE),
+			startTimer(
+				selecting('session'),
+				T0,
+				NOTE
+			),
 			NOTE.path,
 			T0 + MINUTE,
 			150
@@ -301,7 +354,12 @@ describe('resetTimer', () => {
 
 		const result = resetTimer(ended);
 
-		expect(result.session).toEqual({ accumulatedMs: 0, startedAt: null, binding: null, result: null });
+		expect(result.session).toEqual({
+			accumulatedMs: 0,
+			startedAt: null,
+			binding: null,
+			result: null
+		});
 	});
 
 	it('resets only the selected mode', () => {
@@ -319,7 +377,11 @@ describe('setCountdownDuration', () => {
 
 		const result = setCountdownDuration(paused, 5 * MINUTE);
 
-		expect(result.countdown).toEqual({ accumulatedMs: 0, startedAt: null, durationMs: 5 * MINUTE });
+		expect(result.countdown).toEqual({
+			accumulatedMs: 0,
+			startedAt: null,
+			durationMs: 5 * MINUTE
+		});
 	});
 
 	it('ignores a change while the countdown is running', () => {
@@ -357,62 +419,122 @@ describe('setCountdownDuration', () => {
 
 describe('sessionStats', () => {
 	it('reports words written since the session started and the writing rate', () => {
-		const running = startTimer(selecting('session'), T0, NOTE);
+		const running = startTimer(
+			selecting('session'),
+			T0,
+			NOTE
+		);
 
-		const result = sessionStats(running, T0 + 2 * MINUTE, 130);
+		const result = sessionStats(
+			running,
+			T0 + 2 * MINUTE,
+			130
+		);
 
-		expect(result).toEqual({ elapsedMs: 2 * MINUTE, wordsWritten: 30, wordsPerMinute: 15 });
+		expect(result).toEqual({
+			elapsedMs: 2 * MINUTE,
+			wordsWritten: 30,
+			wordsPerMinute: 15
+		});
 	});
 
 	it('excludes paused time from the writing rate', () => {
-		const running = startTimer(selecting('session'), T0, NOTE);
+		const running = startTimer(
+			selecting('session'),
+			T0,
+			NOTE
+		);
 		const paused = pauseTimer(running, T0 + MINUTE);
 		const resumed = startTimer(paused, T0 + 11 * MINUTE);
 
-		const result = sessionStats(resumed, T0 + 12 * MINUTE, 110);
+		const result = sessionStats(
+			resumed,
+			T0 + 12 * MINUTE,
+			110
+		);
 
 		expect(result.elapsedMs).toBe(2 * MINUTE);
 		expect(result.wordsPerMinute).toBe(5);
 	});
 
 	it('reports a net loss of words but never a negative rate', () => {
-		const running = startTimer(selecting('session'), T0, NOTE);
+		const running = startTimer(
+			selecting('session'),
+			T0,
+			NOTE
+		);
 
-		const result = sessionStats(running, T0 + MINUTE, 95);
+		const result = sessionStats(
+			running,
+			T0 + MINUTE,
+			95
+		);
 
 		expect(result.wordsWritten).toBe(-5);
 		expect(result.wordsPerMinute).toBe(0);
 	});
 
 	it('reports a zero rate before any time has passed', () => {
-		const running = startTimer(selecting('session'), T0, NOTE);
+		const running = startTimer(
+			selecting('session'),
+			T0,
+			NOTE
+		);
 
-		const result = sessionStats(running, T0, 110);
+		const result = sessionStats(
+			running,
+			T0,
+			110
+		);
 
 		expect(result.wordsWritten).toBe(10);
 		expect(result.wordsPerMinute).toBe(0);
 	});
 
 	it('reports no words or rate when the bound note\'s count is unavailable', () => {
-		const running = startTimer(selecting('session'), T0, NOTE);
+		const running = startTimer(
+			selecting('session'),
+			T0,
+			NOTE
+		);
 
-		const result = sessionStats(running, T0 + 2 * MINUTE, null);
+		const result = sessionStats(
+			running,
+			T0 + 2 * MINUTE,
+			null
+		);
 
-		expect(result).toEqual({ elapsedMs: 2 * MINUTE, wordsWritten: null, wordsPerMinute: null });
+		expect(result).toEqual({
+			elapsedMs: 2 * MINUTE,
+			wordsWritten: null,
+			wordsPerMinute: null
+		});
 	});
 
 	it('reports no words or rate for a session with no note', () => {
 		const running = startTimer(selecting('session'), T0);
 
-		const result = sessionStats(running, T0 + MINUTE, 500);
+		const result = sessionStats(
+			running,
+			T0 + MINUTE,
+			500
+		);
 
-		expect(result).toEqual({ elapsedMs: MINUTE, wordsWritten: null, wordsPerMinute: null });
+		expect(result).toEqual({
+			elapsedMs: MINUTE,
+			wordsWritten: null,
+			wordsPerMinute: null
+		});
 	});
 });
 
 /** A session bound to `path` and started at T0, with 100 words at the start. */
 function sessionBoundTo(path: string): TimerState {
-	return startTimer(selecting('session'), T0, { path, baselineWords: 100 });
+	return startTimer(
+		selecting('session'),
+		T0,
+		{ path, baselineWords: 100 }
+	);
 }
 
 describe('endSession', () => {
@@ -430,7 +552,11 @@ describe('endSession', () => {
 			accumulatedMs: 2 * MINUTE,
 			startedAt: null,
 			binding: null,
-			result: { path: 'Draft.md', wordsPerMinute: 30, wordsWritten: 60 }
+			result: {
+				path: 'Draft.md',
+				wordsPerMinute: 30,
+				wordsWritten: 60
+			}
 		});
 	});
 
@@ -519,10 +645,7 @@ describe('endSession', () => {
 	});
 
 	it('leaves the other modes running', () => {
-		const withStopwatch: TimerState = {
-			...sessionBoundTo('Draft.md'),
-			stopwatch: { accumulatedMs: 0, startedAt: T0 }
-		};
+		const withStopwatch: TimerState = { ...sessionBoundTo('Draft.md'), stopwatch: { accumulatedMs: 0, startedAt: T0 } };
 
 		const result = endSession(
 			withStopwatch,
@@ -542,7 +665,11 @@ describe('endSession', () => {
 			130
 		);
 
-		const result = startTimer(ended, T0 + 5 * MINUTE, NOTE);
+		const result = startTimer(
+			ended,
+			T0 + 5 * MINUTE,
+			NOTE
+		);
 
 		expect(result).toBe(ended);
 	});
@@ -552,7 +679,11 @@ describe('rebindSession', () => {
 	it('follows a renamed note and keeps its baseline', () => {
 		const running = sessionBoundTo('Draft.md');
 
-		const result = rebindSession(running, 'Draft.md', 'Novel.md');
+		const result = rebindSession(
+			running,
+			'Draft.md',
+			'Novel.md'
+		);
 
 		expect(result.session.binding).toEqual({ path: 'Novel.md', baselineWords: 100 });
 	});
@@ -560,7 +691,11 @@ describe('rebindSession', () => {
 	it('follows a renamed folder', () => {
 		const running = sessionBoundTo('Drafts/Draft.md');
 
-		const result = rebindSession(running, 'Drafts', 'Novel');
+		const result = rebindSession(
+			running,
+			'Drafts',
+			'Novel'
+		);
 
 		expect(result.session.binding?.path).toBe('Novel/Draft.md');
 	});
@@ -568,7 +703,11 @@ describe('rebindSession', () => {
 	it('keeps the session running', () => {
 		const running = sessionBoundTo('Draft.md');
 
-		const result = rebindSession(running, 'Draft.md', 'Novel.md');
+		const result = rebindSession(
+			running,
+			'Draft.md',
+			'Novel.md'
+		);
 
 		expect(result.session.startedAt).toBe(T0);
 	});
@@ -576,7 +715,11 @@ describe('rebindSession', () => {
 	it('leaves a session bound to another note alone', () => {
 		const running = sessionBoundTo('Draft.md');
 
-		const result = rebindSession(running, 'Other.md', 'Novel.md');
+		const result = rebindSession(
+			running,
+			'Other.md',
+			'Novel.md'
+		);
 
 		expect(result).toBe(running);
 	});
@@ -584,7 +727,11 @@ describe('rebindSession', () => {
 	it('does not mistake a folder with a similar name for the renamed one', () => {
 		const running = sessionBoundTo('Drafts2/Draft.md');
 
-		const result = rebindSession(running, 'Drafts', 'Novel');
+		const result = rebindSession(
+			running,
+			'Drafts',
+			'Novel'
+		);
 
 		expect(result).toBe(running);
 	});
@@ -592,7 +739,11 @@ describe('rebindSession', () => {
 	it('leaves an unbound session alone', () => {
 		const unbound = startTimer(selecting('session'), T0);
 
-		const result = rebindSession(unbound, 'Draft.md', 'Novel.md');
+		const result = rebindSession(
+			unbound,
+			'Draft.md',
+			'Novel.md'
+		);
 
 		expect(result).toBe(unbound);
 	});
@@ -601,7 +752,11 @@ describe('rebindSession', () => {
 describe('freezeTimer', () => {
 	it('pauses every running mode, folding in its time, and keeps the mode and binding', () => {
 		const stopwatchRunning = startTimer(selecting('stopwatch'), T0);
-		const bothRunning = startTimer({ ...stopwatchRunning, mode: 'session' }, T0 + SECOND, NOTE);
+		const bothRunning = startTimer(
+			{ ...stopwatchRunning, mode: 'session' },
+			T0 + SECOND,
+			NOTE
+		);
 
 		const result = freezeTimer(bothRunning, T0 + 5 * SECOND);
 
@@ -627,7 +782,11 @@ describe('freezeTimer', () => {
 
 describe('restoreTimer', () => {
 	it('round-trips a frozen timer through JSON', () => {
-		const running = startTimer(selecting('session'), T0, NOTE);
+		const running = startTimer(
+			selecting('session'),
+			T0,
+			NOTE
+		);
 		const frozen = freezeTimer(running, T0 + 3 * MINUTE);
 
 		const result = restoreTimer(JSON.parse(JSON.stringify(frozen)));
@@ -730,7 +889,11 @@ describe('restoreTimer', () => {
 	});
 
 	it('restores the result of a session that ended', () => {
-		const stored = { path: 'Draft.md', wordsPerMinute: 30, wordsWritten: 60 };
+		const stored = {
+			path: 'Draft.md',
+			wordsPerMinute: 30,
+			wordsWritten: 60
+		};
 		const data = { session: { accumulatedMs: 2 * MINUTE, result: stored } };
 
 		const result = restoreTimer(data);
@@ -744,12 +907,11 @@ describe('restoreTimer', () => {
 	});
 
 	it('lets a stored result win over a stored binding', () => {
-		const data = {
-			session: {
-				binding: NOTE,
-				result: { path: 'Draft.md', wordsPerMinute: 30, wordsWritten: 60 }
-			}
-		};
+		const data = { session: { binding: NOTE, result: {
+			path: 'Draft.md',
+			wordsPerMinute: 30,
+			wordsWritten: 60
+		} } };
 
 		const result = restoreTimer(data);
 
@@ -757,7 +919,11 @@ describe('restoreTimer', () => {
 	});
 
 	it('drops a result with no usable path', () => {
-		const data = { session: { result: { path: '', wordsPerMinute: 30, wordsWritten: 60 } } };
+		const data = { session: { result: {
+			path: '',
+			wordsPerMinute: 30,
+			wordsWritten: 60
+		} } };
 
 		const result = restoreTimer(data);
 
@@ -765,9 +931,11 @@ describe('restoreTimer', () => {
 	});
 
 	it('keeps an ended session whose figures are unusable, without those figures', () => {
-		const data = {
-			session: { result: { path: 'Draft.md', wordsPerMinute: -4, wordsWritten: Number.POSITIVE_INFINITY } }
-		};
+		const data = { session: { result: {
+			path: 'Draft.md',
+			wordsPerMinute: -4,
+			wordsWritten: Number.POSITIVE_INFINITY
+		} } };
 
 		const result = restoreTimer(data);
 
@@ -779,7 +947,11 @@ describe('restoreTimer', () => {
 	});
 
 	it('drops unknown fields left over from an older version', () => {
-		const data = { ...createTimer(), legacyLapTimes: [1, 2, 3] };
+		const data = { ...createTimer(), legacyLapTimes: [
+			1,
+			2,
+			3
+		] };
 
 		const result = restoreTimer(data);
 

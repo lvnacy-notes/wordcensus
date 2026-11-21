@@ -38,7 +38,11 @@ const MODE_LABELS: Readonly<Record<TimerMode, string>> = {
  * @returns The button element.
  */
 function buildButton(label: string, className: string): HTMLButtonElement {
-	const button = element('button', className, label);
+	const button = element(
+		'button',
+		className,
+		label
+	);
 	button.type = 'button';
 	return button;
 }

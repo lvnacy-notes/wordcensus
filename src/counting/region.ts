@@ -126,10 +126,7 @@ export function extractHeadingRegion(text: string, heading: string): HeadingRegi
 		.find((candidate) => candidate.level <= selected.level);
 	const end = boundary ? boundary.lineStart : source.length;
 
-	return {
-		heading: selected.text,
-		text: asRegionText(source.slice(selected.lineEnd, end))
-	};
+	return { heading: selected.text, text: asRegionText(source.slice(selected.lineEnd, end)) };
 }
 
 /**

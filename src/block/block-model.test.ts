@@ -3,10 +3,7 @@ import {
 	expect,
 	it
 } from 'vitest';
-import {
-	countBlock,
-	parseBlockSource
-} from './block-model';
+import { countBlock, parseBlockSource } from './block-model';
 import { buildSettings } from '../test/fakes';
 import type { NoteText } from '../types';
 
@@ -61,7 +58,11 @@ describe('parseBlockSource', () => {
 
 describe('countBlock', () => {
 	it('counts the note\'s own region when the block has no heading', () => {
-		const result = countBlock(buildNote(), { heading: null }, buildSettings());
+		const result = countBlock(
+			buildNote(),
+			{ heading: null },
+			buildSettings()
+		);
 
 		expect(result.mode).toBe('note');
 		expect(result.words).toBe(12);
@@ -70,7 +71,11 @@ describe('countBlock', () => {
 	it('honours the note\'s own heading property when the block has no heading', () => {
 		const note = buildNote({ headingOverride: 'Chapter 4' });
 
-		const result = countBlock(note, { heading: null }, buildSettings());
+		const result = countBlock(
+			note,
+			{ heading: null },
+			buildSettings()
+		);
 
 		expect(result.heading).toBe('Chapter 4');
 		expect(result.words).toBe(2);
@@ -79,7 +84,11 @@ describe('countBlock', () => {
 	it('counts under the block\'s heading, even when the note has markers', () => {
 		const text = `<!-- word count start -->a b<!-- word count end -->\n${ TEXT }`;
 
-		const result = countBlock(buildNote({ text }), { heading: 'chapter 3' }, buildSettings());
+		const result = countBlock(
+			buildNote({ text }),
+			{ heading: 'chapter 3' },
+			buildSettings()
+		);
 
 		expect(result).toEqual({
 			heading: 'Chapter 3',
@@ -91,7 +100,11 @@ describe('countBlock', () => {
 	});
 
 	it('reports a heading that is not in the note instead of counting zero quietly', () => {
-		const result = countBlock(buildNote(), { heading: 'Nowhere' }, buildSettings());
+		const result = countBlock(
+			buildNote(),
+			{ heading: 'Nowhere' },
+			buildSettings()
+		);
 
 		expect(result.headingFound).toBe(false);
 		expect(result.words).toBe(0);

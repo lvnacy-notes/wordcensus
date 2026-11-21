@@ -179,32 +179,34 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "left-ribbon": {
     "hiddenItems": {
-      "code-space:Open code space dashboard": false,
       "switcher:Open quick switcher": false,
       "graph:Open graph view": false,
       "canvas:Create new canvas": false,
       "daily-notes:Open today's daily note": false,
       "templates:Insert template": false,
       "command-palette:Open command palette": false,
-      "bases:Create new base": false
+      "bases:Create new base": false,
+      "code-space:Open code space dashboard": false
     }
   },
   "active": "cdd79aed6134e3c0",
   "lastOpenFiles": [
-    "temp.md",
-    "temp.js",
-    "temp.json",
-    "temp.ts",
     "dist/styles.css",
     "dist/manifest.json",
     "dist/main.js",
     "dist",
-    "src/obsidian/activateView.ts",
+    "node_modules/@eslint",
+    "node_modules/@typescript",
+    "node_modules/@typescript-eslint",
+    "node_modules/@types",
+    "node_modules/@vitest",
+    "node_modules/@stylistic",
+    "pnpm-lock.yaml",
+    "temp.md",
     "test.md"
   ]
 }

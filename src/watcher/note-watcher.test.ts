@@ -42,17 +42,12 @@ function buildHarness(): Harness {
 
 	const sources: WatcherSources = {
 		activePath: () => activePath,
-		debounce: (handler): Debounced => Object.assign(
-			() => {
-				waiting = handler;
-			},
-			{
-				cancel: () => {
-					cancelled += 1;
-					waiting = null;
-				}
-			}
-		),
+		debounce: (handler): Debounced => Object.assign(() => {
+			waiting = handler;
+		}, { cancel: () => {
+			cancelled += 1;
+			waiting = null;
+		}}),
 		onActive: listen('active'),
 		onDelete: listen('delete'),
 		onEdit: listen('edit'),
@@ -84,12 +79,7 @@ function buildHarness(): Harness {
 /** A handler that counts its calls. */
 function counter(): { calls: () => number; handler: () => void } {
 	let calls = 0;
-	return {
-		calls: () => calls,
-		handler: () => {
-			calls += 1;
-		}
-	};
+	return { calls: () => calls, handler: () => { calls += 1; } };
 }
 
 const ALL_SOURCES: SourceName[] = [
@@ -396,7 +386,11 @@ describe('createNoteWatcher', () => {
 				order.push('watcher');
 			}, { paths: () => [] });
 
-			harness.emit('move', 'a.md', 'b.md');
+			harness.emit(
+				'move',
+				'a.md',
+				'b.md'
+			);
 
 			expect(order).toEqual(['moved a.md to b.md', 'watcher']);
 		});
@@ -429,7 +423,11 @@ describe('createNoteWatcher', () => {
 				deletions.push(path);
 			});
 
-			harness.emit('move', 'a.md', 'b.md');
+			harness.emit(
+				'move',
+				'a.md',
+				'b.md'
+			);
 			harness.emit('delete', 'c.md');
 
 			expect(moves).toEqual(['a.md>b.md']);
@@ -446,7 +444,11 @@ describe('createNoteWatcher', () => {
 			watcher.onMove(() => undefined);
 
 			stop();
-			harness.emit('move', 'a.md', 'b.md');
+			harness.emit(
+				'move',
+				'a.md',
+				'b.md'
+			);
 
 			expect(moves).toEqual([]);
 		});

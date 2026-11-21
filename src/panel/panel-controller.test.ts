@@ -7,10 +7,7 @@ import {
 import { createPanelController } from './panel-controller';
 import { createStore } from '../settings/store';
 import { createTimerDriver } from '../timer/timer-driver';
-import {
-	fakeEnvironment,
-	fakePersistence
-} from '../test/fakes';
+import { fakeEnvironment, fakePersistence } from '../test/fakes';
 import type { FakeEnvironment } from '../test/test-types';
 import type {
 	NoteCount,
@@ -77,17 +74,14 @@ async function buildSetup(): Promise<Setup> {
 		gate: null,
 		subscribers: 0
 	};
-	const driver: TimerDriver = {
-		...base,
-		subscribe: (listener) => {
-			state.subscribers += 1;
-			const unsubscribe = base.subscribe(listener);
-			return () => {
-				state.subscribers -= 1;
-				unsubscribe();
-			};
-		}
-	};
+	const driver: TimerDriver = { ...base, subscribe: (listener) => {
+		state.subscribers += 1;
+		const unsubscribe = base.subscribe(listener);
+		return () => {
+			state.subscribers -= 1;
+			unsubscribe();
+		};
+	} };
 
 	const notes = new Map<string, NoteInfo>([['novel.md', buildNote('novel.md', 100)]]);
 	const watchers: Watcher[] = [];
@@ -166,7 +160,11 @@ describe('createPanelController', () => {
 	});
 
 	it('redraws on every timer tick', async () => {
-		const { controller, environment, host } = await buildSetup();
+		const {
+			controller,
+			environment,
+			host
+		} = await buildSetup();
 		controller.open(host);
 		await flush();
 		click(host, '.wordcensus-toggle');
@@ -260,7 +258,11 @@ describe('createPanelController', () => {
 
 	describe('actions', () => {
 		it('starts and pauses the selected timer', async () => {
-			const { controller, host, store } = await buildSetup();
+			const {
+				controller,
+				host,
+				store
+			} = await buildSetup();
 			controller.open(host);
 			await flush();
 
@@ -275,11 +277,19 @@ describe('createPanelController', () => {
 		});
 
 		it('switches mode from the pill', async () => {
-			const { controller, host, store } = await buildSetup();
+			const {
+				controller,
+				host,
+				store
+			} = await buildSetup();
 			controller.open(host);
 			await flush();
 
-			click(host, '.wordcensus-mode', 1);
+			click(
+				host,
+				'.wordcensus-mode',
+				1
+			);
 			await flush();
 
 			expect(store.timer.mode).toBe('countdown');
@@ -305,9 +315,17 @@ describe('createPanelController', () => {
 		});
 
 		it('sets the countdown length in minutes', async () => {
-			const { controller, host, store } = await buildSetup();
+			const {
+				controller,
+				host,
+				store
+			} = await buildSetup();
 			controller.open(host);
-			click(host, '.wordcensus-mode', 1);
+			click(
+				host,
+				'.wordcensus-mode',
+				1
+			);
 			await flush();
 			const input = host.querySelector<HTMLInputElement>('.wordcensus-duration-input');
 
@@ -330,7 +348,11 @@ describe('createPanelController', () => {
 			} = await buildSetup();
 			controller.open(host);
 			await flush();
-			click(host, '.wordcensus-mode', 2);
+			click(
+				host,
+				'.wordcensus-mode',
+				2
+			);
 			notes.set('novel.md', buildNote('novel.md', 130));
 
 			click(host, '.wordcensus-toggle');
@@ -343,7 +365,11 @@ describe('createPanelController', () => {
 			const { controller, host } = await buildSetup();
 			controller.open(host);
 			await flush();
-			click(host, '.wordcensus-mode', 2);
+			click(
+				host,
+				'.wordcensus-mode',
+				2
+			);
 			click(host, '.wordcensus-toggle');
 			await flush();
 
@@ -366,7 +392,11 @@ describe('createPanelController', () => {
 			notes.set('other.md', buildNote('other.md', 5));
 			controller.open(host);
 			await flush();
-			click(host, '.wordcensus-mode', 2);
+			click(
+				host,
+				'.wordcensus-mode',
+				2
+			);
 			await flush();
 
 			click(host, '.wordcensus-toggle');
@@ -375,8 +405,16 @@ describe('createPanelController', () => {
 			notes.set('novel.md', buildNote('novel.md', 160));
 			environment.time += 60_000;
 			environment.tick();
-			click(host, '.wordcensus-mode', 0);
-			click(host, '.wordcensus-mode', 2);
+			click(
+				host,
+				'.wordcensus-mode',
+				0
+			);
+			click(
+				host,
+				'.wordcensus-mode',
+				2
+			);
 			controller.open(host);
 			await flush();
 

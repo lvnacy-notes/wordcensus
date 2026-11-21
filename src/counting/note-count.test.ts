@@ -58,14 +58,22 @@ describe('countNote', () => {
 	});
 
 	it('lets a note override the configured heading', () => {
-		const result = countNote(NOTE, buildSettings({ heading: 'Draft' }), ' Other ');
+		const result = countNote(
+			NOTE,
+			buildSettings({ heading: 'Draft' }),
+			' Other '
+		);
 
 		expect(result.heading).toBe('Other');
 		expect(result.words).toBe(2);
 	});
 
 	it('ignores a blank override', () => {
-		const result = countNote(NOTE, buildSettings({ heading: 'Draft' }), '   ');
+		const result = countNote(
+			NOTE,
+			buildSettings({ heading: 'Draft' }),
+			'   '
+		);
 
 		expect(result.heading).toBe('Draft');
 	});
@@ -83,7 +91,11 @@ describe('countHeading', () => {
 	it('counts under the heading even when the note has markers', () => {
 		const text = `<!-- word count start -->a b<!-- word count end -->\n${ NOTE }`;
 
-		const result = countHeading(text, buildSettings(), 'draft');
+		const result = countHeading(
+			text,
+			buildSettings(),
+			'draft'
+		);
 
 		expect(result).toEqual({
 			heading: 'Draft',
@@ -95,7 +107,11 @@ describe('countHeading', () => {
 	});
 
 	it('reports a missing heading by the name it was given', () => {
-		const result = countHeading(NOTE, buildSettings(), ' Missing ');
+		const result = countHeading(
+			NOTE,
+			buildSettings(),
+			' Missing '
+		);
 
 		expect(result.heading).toBe('Missing');
 		expect(result.headingFound).toBe(false);

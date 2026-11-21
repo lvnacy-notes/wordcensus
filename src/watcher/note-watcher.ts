@@ -22,10 +22,7 @@ import type {
 ******************************************************************************/
 
 /** A watcher's handler and the notes whose property changes it cares about. */
-interface Subscription {
-	handler: () => void;
-	options: WatchOptions | undefined;
-}
+interface Subscription { handler: () => void; options: WatchOptions | undefined; }
 
 /******************************************************************************
  * Declared Variables and Constants

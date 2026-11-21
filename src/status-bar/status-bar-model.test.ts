@@ -23,17 +23,11 @@ describe('buildStatusContent', () => {
 	});
 
 	it('marks a counted region and says how it was found', () => {
-		expect(buildStatusContent(count({ mode: 'sentinel', pairs: 2 }))).toEqual({
-			text: '142 words (region)',
-			tooltip: 'Between markers (2 regions)'
-		});
+		expect(buildStatusContent(count({ mode: 'sentinel', pairs: 2 }))).toEqual({ text: '142 words (region)', tooltip: 'Between markers (2 regions)' });
 	});
 
 	it('leaves the mark off for the whole note', () => {
-		expect(buildStatusContent(count({}))).toEqual({
-			text: '142 words',
-			tooltip: 'Whole note'
-		});
+		expect(buildStatusContent(count({}))).toEqual({ text: '142 words', tooltip: 'Whole note' });
 	});
 
 	it('says so when the heading is missing', () => {

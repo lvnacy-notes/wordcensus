@@ -274,7 +274,11 @@ describe('extractRegion', () => {
 
 		const result = extractRegion(text);
 
-		expect(result).toEqual({ mode: 'sentinel', text: '\n b \n d ', pairs: 2 });
+		expect(result).toEqual({
+			mode: 'sentinel',
+			text: '\n b \n d ',
+			pairs: 2
+		});
 	});
 
 	it('prefers sentinels over a configured heading', () => {
@@ -282,7 +286,11 @@ describe('extractRegion', () => {
 
 		const result = extractRegion(text, { heading: 'A' });
 
-		expect(result).toEqual({ mode: 'sentinel', text: '\ns\n', pairs: 1 });
+		expect(result).toEqual({
+			mode: 'sentinel',
+			text: '\ns\n',
+			pairs: 1
+		});
 	});
 
 	it('returns the section under a configured heading', () => {
@@ -290,7 +298,12 @@ describe('extractRegion', () => {
 
 		const result = extractRegion(text, { heading: 'a' });
 
-		expect(result).toEqual({ mode: 'heading', text: '\nbody', heading: 'A', found: true });
+		expect(result).toEqual({
+			mode: 'heading',
+			text: '\nbody',
+			heading: 'A',
+			found: true
+		});
 	});
 
 	it('reports a missing heading instead of falling back to the whole note', () => {
@@ -298,7 +311,12 @@ describe('extractRegion', () => {
 
 		const result = extractRegion(text, { heading: '  Nope ' });
 
-		expect(result).toEqual({ mode: 'heading', text: '', heading: 'Nope', found: false });
+		expect(result).toEqual({
+			mode: 'heading',
+			text: '',
+			heading: 'Nope',
+			found: false
+		});
 	});
 
 	it('falls through to the heading when the only marker is an unmatched end', () => {
@@ -306,6 +324,11 @@ describe('extractRegion', () => {
 
 		const result = extractRegion(text, { heading: 'A' });
 
-		expect(result).toEqual({ mode: 'heading', text: '\nb', heading: 'A', found: true });
+		expect(result).toEqual({
+			mode: 'heading',
+			text: '\nb',
+			heading: 'A',
+			found: true
+		});
 	});
 });

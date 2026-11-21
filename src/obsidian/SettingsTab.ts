@@ -87,35 +87,30 @@ export class WordCensusSettingTab extends PluginSettingTab {
 			{
 				type: 'group',
 				heading: 'Timer',
-				items: [
-					{
-						name: 'Default countdown',
-						desc: 'Minutes the countdown starts from.',
-						control: {
-							type: 'number',
-							key: 'defaultCountdownMinutes',
-							min: MIN_COUNTDOWN_MINUTES,
-							max: MAX_COUNTDOWN_MINUTES,
-							step: 1
-						}
-					},
-					{
-						name: 'Keep timer across restarts',
-						desc: 'Save the timer and bring it back, paused, when Obsidian reopens.',
-						control: { type: 'toggle', key: 'keepTimerState' }
+				items: [{
+					name: 'Default countdown',
+					desc: 'Minutes the countdown starts from.',
+					control: {
+						type: 'number',
+						key: 'defaultCountdownMinutes',
+						min: MIN_COUNTDOWN_MINUTES,
+						max: MAX_COUNTDOWN_MINUTES,
+						step: 1
 					}
-				]
+				}, {
+					name: 'Keep timer across restarts',
+					desc: 'Save the timer and bring it back, paused, when Obsidian reopens.',
+					control: { type: 'toggle', key: 'keepTimerState' }
+				}]
 			},
 			{
 				type: 'group',
 				heading: 'Display',
-				items: [
-					{
-						name: 'Show status bar item',
-						desc: 'Show the word count in the status bar. Desktop only.',
-						control: { type: 'toggle', key: 'showStatusBar' }
-					}
-				]
+				items: [{
+					name: 'Show status bar item',
+					desc: 'Show the word count in the status bar. Desktop only.',
+					control: { type: 'toggle', key: 'showStatusBar' }
+				}]
 			}
 		];
 	}

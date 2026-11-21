@@ -109,7 +109,11 @@ describe('createPanel', () => {
 	});
 
 	it('marks the selected mode and reports a click on another', () => {
-		const { calls, host, panel } = render();
+		const {
+			calls,
+			host,
+			panel
+		} = render();
 		panel.update(buildModel({ mode: 'countdown' }));
 		const buttons = Array.from(host.querySelectorAll<HTMLButtonElement>('.wordcensus-mode'));
 
@@ -124,7 +128,11 @@ describe('createPanel', () => {
 	});
 
 	it('labels the toggle for what it will do and reports clicks', () => {
-		const { calls, host, panel } = render();
+		const {
+			calls,
+			host,
+			panel
+		} = render();
 		const toggle = find<HTMLButtonElement>(host, '.wordcensus-toggle');
 
 		panel.update(buildModel({ running: false }));
@@ -150,7 +158,11 @@ describe('createPanel', () => {
 	});
 
 	it('reports a click on Reset', () => {
-		const { calls, host, panel } = render();
+		const {
+			calls,
+			host,
+			panel
+		} = render();
 		panel.update(buildModel());
 
 		find<HTMLButtonElement>(host, '.wordcensus-reset').click();
@@ -187,7 +199,11 @@ describe('createPanel', () => {
 		});
 
 		it('reports a valid change and ignores a blank or non-positive one', () => {
-			const { calls, host, panel } = render();
+			const {
+				calls,
+				host,
+				panel
+			} = render();
 			panel.update(buildModel({
 				durationEditable: true,
 				durationMinutes: 25,
@@ -195,7 +211,11 @@ describe('createPanel', () => {
 			}));
 			const input = find<HTMLInputElement>(host, '.wordcensus-duration-input');
 
-			for (const value of ['15', '', '0']) {
+			for (const value of [
+				'15',
+				'',
+				'0'
+			]) {
 				input.value = value;
 				input.dispatchEvent(new Event('change'));
 			}

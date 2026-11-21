@@ -4,14 +4,8 @@
  */
 
 import { DEFAULT_SETTINGS } from '../settings/settings';
-import type {
-	Persistence,
-	WordCensusSettings
-} from '../types';
-import type {
-	FakeEnvironment,
-	FakePersistence
-} from './test-types';
+import type { Persistence, WordCensusSettings } from '../types';
+import type { FakeEnvironment, FakePersistence } from './test-types';
 
 /** Every saved settings field set to a value of the wrong type. */
 export const MALFORMED_SETTINGS: Readonly<Record<string, unknown>> = Object.freeze({
@@ -67,12 +61,6 @@ export function fakeEnvironment(startTime = 1_000_000): FakeEnvironment {
 /** Persistence that returns `initial` when loaded and records everything saved. */
 export function fakePersistence(initial: unknown): FakePersistence {
 	const saved: unknown[] = [];
-	const persistence: Persistence = {
-		load: () => Promise.resolve(initial),
-		save: (data) => {
-			saved.push(data);
-			return Promise.resolve();
-		}
-	};
+	const persistence: Persistence = { load: () => Promise.resolve(initial), save: (data) => { saved.push(data); return Promise.resolve(); } };
 	return { persistence, saved };
 }

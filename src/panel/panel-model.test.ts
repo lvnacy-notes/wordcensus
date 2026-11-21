@@ -55,7 +55,11 @@ function buildInput(mode: TimerMode, overrides: Partial<PanelInput> = {}): Panel
 describe('buildPanelModel', () => {
 	describe('summary', () => {
 		it('summarizes the active note', () => {
-			const active = buildNote({ mode: 'sentinel', pairs: 2, words: 40 });
+			const active = buildNote({
+				mode: 'sentinel',
+				pairs: 2,
+				words: 40
+			});
 
 			const model = buildPanelModel(buildInput('stopwatch', { active }));
 
@@ -89,10 +93,7 @@ describe('buildPanelModel', () => {
 			const model = buildPanelModel(buildInput('countdown', { now: T0 + 2 * MINUTE, timer }));
 
 			expect(model.clock).toEqual({ ms: 8 * MINUTE, wedge: 0.8 });
-			expect(model.rows).toEqual([
-				{ label: 'Remaining', value: '8:00' },
-				{ label: 'Duration', value: '10:00' }
-			]);
+			expect(model.rows).toEqual([{ label: 'Remaining', value: '8:00' }, { label: 'Duration', value: '10:00' }]);
 			expect(model.durationMinutes).toBe(10);
 		});
 

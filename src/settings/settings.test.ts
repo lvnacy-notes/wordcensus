@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import {
+	describe,
+	expect,
+	it
+} from 'vitest';
 import {
 	DEFAULT_SETTINGS,
 	MAX_COUNTDOWN_MINUTES,
@@ -18,7 +22,11 @@ describe('buildSaveData', () => {
 		const settings = buildSettings({ keepTimerState: false });
 		const timer = startTimer(createTimer(), T0);
 
-		const result = buildSaveData(settings, timer, T0 + 5000);
+		const result = buildSaveData(
+			settings,
+			timer,
+			T0 + 5000
+		);
 
 		expect('timer' in result).toBe(false);
 		expect(result).toEqual(settings);
@@ -28,7 +36,11 @@ describe('buildSaveData', () => {
 		const settings = buildSettings({ keepTimerState: true });
 		const timer = startTimer(createTimer(), T0);
 
-		const result = buildSaveData(settings, timer, T0 + 5000);
+		const result = buildSaveData(
+			settings,
+			timer,
+			T0 + 5000
+		);
 
 		expect(result.timer?.stopwatch).toEqual({ accumulatedMs: 5000, startedAt: null });
 		expect(result.keepTimerState).toBe(true);

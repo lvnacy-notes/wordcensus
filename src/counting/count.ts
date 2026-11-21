@@ -313,10 +313,7 @@ function splitFences(text: string): TextSegment[] {
 			body.push(lines[i]);
 			i++;
 		}
-		segments.push({
-			kind: language === 'wordcount' ? 'wordcount' : 'code',
-			text: body.join('\n')
-		});
+		segments.push({ kind: language === 'wordcount' ? 'wordcount' : 'code', text: body.join('\n') });
 	}
 	flushProse();
 	return segments;

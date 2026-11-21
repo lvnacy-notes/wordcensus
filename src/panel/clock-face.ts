@@ -81,15 +81,13 @@ export function createClockFace(host: HTMLElement): ClockFace {
 	const second = svg.appendChild(handElement(page, 'second'));
 	host.appendChild(svg);
 
-	return {
-		update(model: ClockModel): void {
-			const angles = handAngles(model.ms);
-			hour.setAttribute('transform', rotation(angles.hour));
-			minute.setAttribute('transform', rotation(angles.minute));
-			second.setAttribute('transform', rotation(angles.second));
-			wedge.setAttribute('d', model.wedge === null ? '' : wedgePath(model.wedge));
-		}
-	};
+	return { update(model: ClockModel): void {
+		const angles = handAngles(model.ms);
+		hour.setAttribute('transform', rotation(angles.hour));
+		minute.setAttribute('transform', rotation(angles.minute));
+		second.setAttribute('transform', rotation(angles.second));
+		wedge.setAttribute('d', model.wedge === null ? '' : wedgePath(model.wedge));
+	} };
 }
 
 /**
