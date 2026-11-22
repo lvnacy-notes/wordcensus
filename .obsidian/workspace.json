@@ -11,10 +11,14 @@
             "id": "cdd79aed6134e3c0",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "docs/Word Census v1.1-2 Implementation.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "Word Census v1.1-2 Implementation"
             }
           }
         ],
@@ -179,7 +183,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -195,6 +200,22 @@
   },
   "active": "cdd79aed6134e3c0",
   "lastOpenFiles": [
+    "docs/Word Census v1.1-2 SPEC.md",
+    "docs/Word Census v1.1 SPEC.md",
+    "docs/Word Census v1.1-2 Implementation.md",
+    "docs/Code Style Guide.md",
+    "docs/SPEC.md",
+    "temp.md",
+    "docs/graphics/word-census-github.jpg",
+    "docs/graphics/word-census-emblem.png",
+    "docs/graphics",
+    "docs/images/word-census-github.jpg",
+    "docs/images/word-census-emblem.png",
+    "docs/images",
+    "docs/word-census-github.jpg",
+    "docs/word-census-emblem.png",
+    "word-census-emblem.png",
+    "word-census-github.jpg",
     "dist/styles.css",
     "dist/manifest.json",
     "dist/main.js",
@@ -203,10 +224,6 @@
     "node_modules/@typescript",
     "node_modules/@typescript-eslint",
     "node_modules/@types",
-    "node_modules/@vitest",
-    "node_modules/@stylistic",
-    "pnpm-lock.yaml",
-    "temp.md",
     "test.md"
   ]
 }

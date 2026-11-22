@@ -1,23 +1,23 @@
+<div align="center">
+<br />
+<img
+    src="./docs/graphics/word-census-emblem.png"
+    width="128px"
+    alt="Word Census emblem"
+/>
+<br />
+<br />
+
 # Word Census
 
 An [Obsidian](https://obsidian.md) plugin that counts words only inside a region of a note, not the whole thing. Mark the region with a pair of comments or point the plugin at a heading, and Word Census counts what's there: in a sidebar panel with a stopwatch, a countdown and a writing-session timer, in an inline `wordcount` block you can place anywhere, and in the status bar on desktop.
 
 It's built for people who keep notes, outlines and drafts in the same file and want to know how long the draft itself is. It works on mobile as well as desktop.
 
-## CI flags
+[![CI](https://github.com/lvnacy-notes/wordcensus/actions/workflows/ci.yaml/badge.svg)](https://github.com/lvnacy-notes/wordcensus/actions/workflows/ci.yaml) [![Release](https://github.com/lvnacy-notes/wordcensus/actions/workflows/release.yaml/badge.svg)](https://github.com/lvnacy-notes/wordcensus/actions/workflows/release.yaml)
 
-> **Placeholder.** These status badges will be added once CI is set up.
+</div>
 
-<!--
-| Check | Status |
-|-------|--------|
-| Lint | _pending_ |
-| Typecheck | _pending_ |
-| Tests | _pending_ |
-| Build | _pending_ |
-| Coverage | _pending_ |
-| Latest release | _pending_ |
--->
 
 ## Features
 
@@ -86,7 +86,9 @@ On desktop, the status bar shows the active note's count. It can be turned off i
 
 ## Installation
 
-Word Census isn't in the community plugin directory yet. To install it by hand, download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/lvnacy-notes/wordcensus/releases) once one is published, put them in `<your vault>/.obsidian/plugins/wordcensus/`, and enable the plugin under **Settings → Community plugins**.
+To simplest way is to search for Word Census when browsing the community plugins in your vault. Install and enable, then peruse the settings to get yourself set up.
+
+To install it by hand, download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/lvnacy-notes/wordcensus/releases) once one is published, put them in `<your vault>/.obsidian/plugins/wordcensus/`, and enable the plugin under **Settings → Community plugins**.
 
 Word Census needs Obsidian 1.13.0 or later.
 
