@@ -1,6 +1,8 @@
-# Plugin Code Style Guide
+```wordcount
+heading: Layout
+```
 
-Rules for code in plugins built from this template. `eslint` covers what Obsidian requires of plugins; this guide covers the rest.
+`eslint` covers what Obsidian requires of plugins; this guide covers the rest.
 
 ## Layout
 
